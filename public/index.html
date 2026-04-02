@@ -341,6 +341,22 @@ tr:hover { background: var(--gray-50); }
     <div class="page" id="page-saldos">
       <div class="page-header"><h1>Saldos</h1></div>
       <div class="table-wrap">
+        <div class="table-toolbar" style="flex-wrap:wrap;">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <input type="text" placeholder="Buscar cliente..." id="searchSaldos" oninput="filterSaldos()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;width:250px;">
+            <select id="filterSaldoSituacao" onchange="filterSaldos()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+              <option value="">Todas as situações</option>
+              <option value="Normal">Normal</option>
+              <option value="Alerta">Alerta - Comprar saldo</option>
+              <option value="Urgente">Urgente - Comprar Saldo</option>
+            </select>
+            <select id="filterSaldoEscritorio" onchange="filterSaldos()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+              <option value="">Todos os escritórios</option>
+              <option value="Pedro">Pedro</option>
+              <option value="Pitágoras">Pitágoras</option>
+            </select>
+          </div>
+        </div>
         <div class="table-responsive">
           <table><thead><tr><th>Cliente</th><th>Escritório</th><th>Certificado</th><th>Créditos</th><th>Débitos</th><th>Transferências</th><th>Saldo</th><th>Média Operação</th><th>Situação</th></tr></thead>
           <tbody id="tblSaldos"></tbody></table>
@@ -393,7 +409,7 @@ tr:hover { background: var(--gray-50); }
       <div id="relResumo" style="display:none;" class="cards"></div>
       <div class="table-wrap" id="relTabela" style="display:none;">
         <div class="table-responsive">
-          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th></tr></thead>
+          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Valor</th></tr></thead>
           <tbody id="tblRelatorio"></tbody>
           <tfoot id="tblRelatorioFoot"></tfoot></table>
         </div>
@@ -818,15 +834,14 @@ async function loadMovimentacoes() {
 
   document.getElementById('tblMovs').innerHTML = data.items.map(m => {
     const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
-    const valor = parseFloat(m.valor) || 0;
-    const displayValue = valor >= 0 ? valor : -valor;
+    const valorAj = parseFloat(m.valor_ajustado) || 0;
     return `<tr>
       <td>${m.cliente_nome || '-'}</td>
       <td><span class="badge ${isCredit ? 'green' : 'red'}">${m.tipo_movimento || '-'}</span></td>
       <td>${formatDate(m.data_nf)}</td>
       <td>${m.duimp_di_processo || '-'}</td>
       <td>${m.parceiro || '-'}</td>
-      <td class="money ${valor >= 0 ? 'positive' : 'negative'}">${formatMoney(displayValue)}</td>
+      <td class="money ${valorAj >= 0 ? 'positive' : 'negative'}">${formatMoney(valorAj)}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-sm btn-outline" onclick="editMov(${m.id})">Editar</button>
         <button class="btn btn-sm btn-danger" onclick="deleteMov(${m.id})">Excluir</button>
@@ -899,8 +914,26 @@ async function deleteMov(id) {
 }
 
 // ============ SALDOS ============
+let saldosCache = [];
 async function loadSaldos() {
-  const saldos = await api('/api/saldos');
+  saldosCache = await api('/api/saldos');
+  filterSaldos();
+}
+
+function filterSaldos() {
+  const busca = (document.getElementById('searchSaldos').value || '').toLowerCase();
+  const situacao = document.getElementById('filterSaldoSituacao').value;
+  const escritorio = document.getElementById('filterSaldoEscritorio').value;
+
+  let filtered = saldosCache;
+  if (busca) filtered = filtered.filter(s => s.nome.toLowerCase().includes(busca));
+  if (situacao) filtered = filtered.filter(s => s.situacao.includes(situacao));
+  if (escritorio) filtered = filtered.filter(s => s.escritorio === escritorio);
+
+  renderSaldos(filtered);
+}
+
+function renderSaldos(saldos) {
   document.getElementById('tblSaldos').innerHTML = saldos.map(s => {
     let badge = s.situacao === 'Normal' ? 'green' : s.situacao.includes('Urgente') ? 'red' : 'yellow';
     return `<tr>
@@ -1001,18 +1034,18 @@ async function gerarRelatorio() {
   document.getElementById('relTabela').style.display = 'block';
   document.getElementById('tblRelatorio').innerHTML = data.items.map(m => {
     const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
+    const valorAj = parseFloat(m.valor_ajustado) || 0;
     return `<tr>
       <td>${m.cliente_nome || '-'}</td>
       <td><span class="badge ${isCredit ? 'green' : 'red'}">${m.tipo_movimento || '-'}</span></td>
       <td>${formatDate(m.data_nf)}</td>
       <td>${m.duimp_di_processo || '-'}</td>
-      <td>${m.parceiro || '-'}</td>
-      <td class="money ${parseFloat(m.valor) >= 0 ? 'positive' : 'negative'}">${formatMoney(m.valor)}</td>
+      <td class="money ${valorAj >= 0 ? 'positive' : 'negative'}">${formatMoney(valorAj)}</td>
     </tr>`;
   }).join('');
 
   document.getElementById('tblRelatorioFoot').innerHTML = `<tr style="background:#f3f4f6;font-weight:bold;">
-    <td colspan="5" style="text-align:right;">TOTAIS:</td>
+    <td colspan="4" style="text-align:right;">TOTAIS:</td>
     <td class="money ${r.saldo >= 0 ? 'positive' : 'negative'}">${formatMoney(r.saldo)}</td>
   </tr>`;
 
