@@ -50,6 +50,9 @@ function initDatabase() {
     reativacao_ie TEXT DEFAULT 'Não',
     conta_grafica TEXT DEFAULT 'Não',
     cliente_certificado TEXT DEFAULT 'Não',
+    parceiro_sala TEXT,
+    parceiro_filial TEXT,
+    parceiro_ie TEXT,
     observacoes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -81,6 +84,23 @@ function initDatabase() {
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Add new columns to clientes table if they don't exist
+  try {
+    db.run(`ALTER TABLE clientes ADD COLUMN parceiro_sala TEXT`);
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.run(`ALTER TABLE clientes ADD COLUMN parceiro_filial TEXT`);
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.run(`ALTER TABLE clientes ADD COLUMN parceiro_ie TEXT`);
+  } catch (e) {
+    // Column already exists
+  }
 
   // Create default admin user
   const admin = db.exec("SELECT id FROM users WHERE email = 'admin@saygogroup.com.br'");
@@ -194,18 +214,18 @@ app.get('/api/clientes', requireAuth, (req, res) => {
 });
 
 app.post('/api/clientes', requireAuth, (req, res) => {
-  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, observacoes } = req.body;
-  db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, observacoes)
-    VALUES (?,?,?,?,?,?,?,?)`, [nome, escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', observacoes || '']);
+  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes } = req.body;
+  db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [nome, escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '']);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'CREATE', 'cliente', null, `Cliente criado: ${nome}`);
   res.json({ ok: true });
 });
 
 app.put('/api/clientes/:id', requireAuth, (req, res) => {
-  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, observacoes } = req.body;
-  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, observacoes=?, updated_at=CURRENT_TIMESTAMP
-    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, observacoes, req.params.id]);
+  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes } = req.body;
+  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, req.params.id]);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
   res.json({ ok: true });
@@ -255,16 +275,34 @@ app.get('/api/movimentacoes', requireAuth, (req, res) => {
 });
 
 app.post('/api/movimentacoes', requireAuth, (req, res) => {
-  const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor, valor_ajustado } = req.body;
+  const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor } = req.body;
+
+  // Calculate valor_ajustado automatically based on tipo_movimento
+  let valor_ajustado = 0;
+  if (tipo_movimento && tipo_movimento.includes('Débito')) {
+    valor_ajustado = Math.abs(valor || 0) * -1;
+  } else if (tipo_movimento && tipo_movimento.includes('Crédito')) {
+    valor_ajustado = Math.abs(valor || 0);
+  }
+
   db.run(`INSERT INTO movimentacoes (cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor, valor_ajustado)
-    VALUES (?,?,?,?,?,?,?,?,?)`, [cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor || 0, valor_ajustado || 0]);
+    VALUES (?,?,?,?,?,?,?,?,?)`, [cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor || 0, valor_ajustado]);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'CREATE', 'movimentacao', null, `Lançamento criado para cliente ${cliente_id}`);
   res.json({ ok: true });
 });
 
 app.put('/api/movimentacoes/:id', requireAuth, (req, res) => {
-  const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor, valor_ajustado } = req.body;
+  const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor } = req.body;
+
+  // Calculate valor_ajustado automatically based on tipo_movimento
+  let valor_ajustado = 0;
+  if (tipo_movimento && tipo_movimento.includes('Débito')) {
+    valor_ajustado = Math.abs(valor || 0) * -1;
+  } else if (tipo_movimento && tipo_movimento.includes('Crédito')) {
+    valor_ajustado = Math.abs(valor || 0);
+  }
+
   db.run(`UPDATE movimentacoes SET cliente_id=?, tipo_movimento=?, data_nf=?, duimp_di_processo=?, parceiro=?, data_exoneracao=?, percentual=?, valor=?, valor_ajustado=?, updated_at=CURRENT_TIMESTAMP
     WHERE id=?`, [cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor, valor_ajustado, req.params.id]);
   saveDb();
@@ -352,17 +390,55 @@ app.get('/api/relatorio', requireAuth, (req, res) => {
   sql += " ORDER BY m.data_nf ASC";
 
   const result = db.exec(sql, params);
+
+  // Get all movements up to data_fim for saldo acumulado calculation
+  let allMovementsUpToDataFim = [];
+  if (cliente_id && data_fim) {
+    const saldoSql = `SELECT m.*, c.nome as cliente_nome FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id WHERE m.cliente_id = ? AND m.data_nf <= ? ORDER BY m.data_nf ASC`;
+    const saldoResult = db.exec(saldoSql, [cliente_id, data_fim]);
+    if (saldoResult.length > 0) {
+      allMovementsUpToDataFim = saldoResult[0].values.map(row => {
+        const obj = {};
+        saldoResult[0].columns.forEach((c, i) => obj[c] = row[i]);
+        return obj;
+      });
+    }
+  } else if (cliente_id) {
+    const saldoSql = `SELECT m.*, c.nome as cliente_nome FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id WHERE m.cliente_id = ? ORDER BY m.data_nf ASC`;
+    const saldoResult = db.exec(saldoSql, [cliente_id]);
+    if (saldoResult.length > 0) {
+      allMovementsUpToDataFim = saldoResult[0].values.map(row => {
+        const obj = {};
+        saldoResult[0].columns.forEach((c, i) => obj[c] = row[i]);
+        return obj;
+      });
+    }
+  } else if (data_fim) {
+    const saldoSql = `SELECT m.*, c.nome as cliente_nome FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id WHERE m.data_nf <= ? ORDER BY m.data_nf ASC`;
+    const saldoResult = db.exec(saldoSql, [data_fim]);
+    if (saldoResult.length > 0) {
+      allMovementsUpToDataFim = saldoResult[0].values.map(row => {
+        const obj = {};
+        saldoResult[0].columns.forEach((c, i) => obj[c] = row[i]);
+        return obj;
+      });
+    }
+  }
+
   if (result.length === 0) return res.json({ items: [], resumo: { creditos: 0, debitos: 0, transferencias: 0, saldo: 0 } });
 
   const cols = result[0].columns;
   const items = result[0].values.map(row => {
     const obj = {};
     cols.forEach((c, i) => obj[c] = row[i]);
+    // Remove parceiro from response items
+    delete obj.parceiro;
     return obj;
   });
 
+  // Calculate saldo acumulado from all movements up to data_fim
   let creditos = 0, debitos = 0, transferencias = 0;
-  items.forEach(m => {
+  allMovementsUpToDataFim.forEach(m => {
     if (m.tipo_movimento === 'Créditos Reconhecidos e Cedidos') creditos += m.valor_ajustado || 0;
     else if (m.tipo_movimento === 'Débitos de Liquidações') debitos += m.valor_ajustado || 0;
     else if (m.tipo_movimento === 'Débitos de Transferências') transferencias += m.valor_ajustado || 0;
@@ -374,7 +450,7 @@ app.get('/api/relatorio', requireAuth, (req, res) => {
 // ============ EXPORT EXCEL ============
 app.get('/api/relatorio/excel', requireAuth, (req, res) => {
   const { cliente_id, data_inicio, data_fim } = req.query;
-  let sql = `SELECT c.nome as Cliente, m.tipo_movimento as "Tipo Movimento", m.data_nf as "Data NF", m.duimp_di_processo as "DUIMP/DI ou Processo", m.parceiro as Parceiro, m.data_exoneracao as "Data Exoneração", m.percentual as "%", m.valor as Valor, m.valor_ajustado as "Valor Ajustado" FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id`;
+  let sql = `SELECT c.nome as Cliente, m.tipo_movimento as "Tipo Movimento", m.data_nf as "Data NF", m.duimp_di_processo as "DUIMP/DI ou Processo", m.data_exoneracao as "Data Exoneração", m.percentual as "%", m.valor as Valor, m.valor_ajustado as "Valor Ajustado" FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id`;
   const params = [];
   const conditions = [];
 
@@ -387,8 +463,48 @@ app.get('/api/relatorio/excel', requireAuth, (req, res) => {
 
   const result = db.exec(sql, params);
 
+  // Get all movements up to data_fim for saldo acumulado calculation
+  let creditos = 0, debitos = 0, transferencias = 0;
+  if (cliente_id && data_fim) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.cliente_id = ? AND m.data_nf <= ?`;
+    const saldoResult = db.exec(saldoSql, [cliente_id, data_fim]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  } else if (cliente_id) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.cliente_id = ?`;
+    const saldoResult = db.exec(saldoSql, [cliente_id]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  } else if (data_fim) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.data_nf <= ?`;
+    const saldoResult = db.exec(saldoSql, [data_fim]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  }
+
   const wb = XLSX.utils.book_new();
-  const header = ["Cliente", "Tipo Movimento", "Data NF", "DUIMP/DI ou Processo", "Parceiro", "Data Exoneração", "%", "Valor", "Valor Ajustado"];
+  const header = ["Cliente", "Tipo Movimento", "Data NF", "DUIMP/DI ou Processo", "Data Exoneração", "%", "Valor", "Valor Ajustado"];
 
   let rows = [header];
   if (result.length > 0) {
@@ -397,21 +513,11 @@ app.get('/api/relatorio/excel', requireAuth, (req, res) => {
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   // Column widths
-  ws['!cols'] = [{ wch: 45 }, { wch: 35 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 16 }, { wch: 6 }, { wch: 15 }, { wch: 15 }];
+  ws['!cols'] = [{ wch: 45 }, { wch: 35 }, { wch: 12 }, { wch: 20 }, { wch: 16 }, { wch: 6 }, { wch: 15 }, { wch: 15 }];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
 
   // Summary sheet
-  let creditos = 0, debitos = 0, transferencias = 0;
-  if (result.length > 0) {
-    result[0].values.forEach(row => {
-      const tipo = row[1];
-      const val = row[8] || 0;
-      if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
-      else if (tipo === 'Débitos de Liquidações') debitos += val;
-      else if (tipo === 'Débitos de Transferências') transferencias += val;
-    });
-  }
   const wsResumo = XLSX.utils.aoa_to_sheet([
     ["RESUMO DO EXTRATO"],
     [],
@@ -450,12 +556,46 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
     return obj;
   }) : [];
 
+  // Get all movements up to data_fim for saldo acumulado calculation
   let creditos = 0, debitos = 0, transferencias = 0;
-  items.forEach(m => {
-    if (m.tipo_movimento === 'Créditos Reconhecidos e Cedidos') creditos += m.valor_ajustado || 0;
-    else if (m.tipo_movimento === 'Débitos de Liquidações') debitos += m.valor_ajustado || 0;
-    else if (m.tipo_movimento === 'Débitos de Transferências') transferencias += m.valor_ajustado || 0;
-  });
+  if (cliente_id && data_fim) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.cliente_id = ? AND m.data_nf <= ?`;
+    const saldoResult = db.exec(saldoSql, [cliente_id, data_fim]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  } else if (cliente_id) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.cliente_id = ?`;
+    const saldoResult = db.exec(saldoSql, [cliente_id]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  } else if (data_fim) {
+    const saldoSql = `SELECT m.* FROM movimentacoes m WHERE m.data_nf <= ?`;
+    const saldoResult = db.exec(saldoSql, [data_fim]);
+    if (saldoResult.length > 0) {
+      saldoResult[0].values.forEach(row => {
+        const tipo = row[saldoResult[0].columns.indexOf('tipo_movimento')];
+        const val = row[saldoResult[0].columns.indexOf('valor_ajustado')] || 0;
+        if (tipo === 'Créditos Reconhecidos e Cedidos') creditos += val;
+        else if (tipo === 'Débitos de Liquidações') debitos += val;
+        else if (tipo === 'Débitos de Transferências') transferencias += val;
+      });
+    }
+  }
+
   const saldo = creditos + debitos + transferencias;
 
   const clienteNome = items.length > 0 && cliente_id ? items[0].cliente_nome : 'Todos os Clientes';
@@ -469,17 +609,16 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
     <td>${m.tipo_movimento || '-'}</td>
     <td>${fmtDate(m.data_nf)}</td>
     <td>${m.duimp_di_processo || '-'}</td>
-    <td>${m.parceiro || '-'}</td>
     <td style="text-align:right;">${fmtMoney(m.valor)}</td>
     <td style="text-align:right;">${fmtMoney(m.valor_ajustado)}</td>
   </tr>`).join('');
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Extrato Conta Gráfica</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Vision - Extrato de Conta Gráfica</title>
 <style>
   @media print { @page { size: landscape; margin: 10mm; } body { -webkit-print-color-adjust: exact; } }
   body { font-family: Arial, sans-serif; font-size: 11px; color: #333; padding: 20px; }
-  .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1a56db; padding-bottom: 10px; }
-  .header h1 { color: #1a56db; font-size: 20px; margin: 0; }
+  .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #f47520; padding-bottom: 10px; }
+  .header h1 { color: #f47520; font-size: 20px; margin: 0; }
   .header p { color: #666; margin: 4px 0 0; }
   .info { display: flex; justify-content: space-between; margin-bottom: 16px; }
   .info div { background: #f3f4f6; padding: 8px 12px; border-radius: 4px; }
@@ -491,19 +630,19 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
   .resumo .card .lbl { font-size: 10px; text-transform: uppercase; }
   .resumo .card .val { font-size: 16px; font-weight: bold; margin-top: 4px; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th { background: #1a56db; color: white; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; }
+  th { background: #f47520; color: white; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; }
   td { padding: 6px; border-bottom: 1px solid #e5e7eb; font-size: 11px; }
   tr:nth-child(even) { background: #f9fafb; }
   .footer { margin-top: 20px; text-align: center; color: #999; font-size: 10px; border-top: 1px solid #ddd; padding-top: 8px; }
-  .btn-print { background: #1a56db; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 16px; }
-  .btn-print:hover { background: #1e40af; }
+  .btn-print { background: #f47520; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 16px; }
+  .btn-print:hover { background: #d66a1b; }
   @media print { .no-print { display: none !important; } }
 </style></head><body>
 <div class="no-print" style="text-align:center;margin-bottom:16px;">
   <button class="btn-print" onclick="window.print()">Imprimir / Salvar PDF</button>
 </div>
 <div class="header">
-  <h1>EXTRATO DE CONTA GRÁFICA</h1>
+  <h1>Vision - Extrato de Conta Gráfica</h1>
   <p>Saygo Group - Sistema de Gestão de Créditos</p>
 </div>
 <div class="info">
@@ -516,7 +655,7 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
   <div class="card red"><div class="lbl">Débitos</div><div class="val">${fmtMoney(debitos)}</div></div>
   <div class="card ${saldo >= 0 ? 'blue' : 'red'}"><div class="lbl">Saldo</div><div class="val">${fmtMoney(saldo)}</div></div>
 </div>
-<table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Valor Ajustado</th></tr></thead>
+<table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Valor</th><th>Valor Ajustado</th></tr></thead>
 <tbody>${rowsHtml}</tbody></table>
 <div class="footer">Relatório gerado em ${new Date().toLocaleString('pt-BR')} — Sistema Conta Gráfica — Saygo Group</div>
 </body></html>`;
@@ -570,8 +709,8 @@ app.post('/api/import', requireAuth, requireAdmin, upload.single('file'), (req, 
         if (!row[0]) continue;
         const existing = db.exec("SELECT id FROM clientes WHERE nome = ?", [row[0]]);
         if (existing.length === 0 || existing[0].values.length === 0) {
-          db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, observacoes)
-            VALUES (?,?,?,?,?,?,?,?)`, [row[0], row[1] || '', row[2] || 'Não', row[3] || 'Não', row[4] || 'Não', row[5] || 'Não', row[6] || 'Não', row[7] || '']);
+          db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [row[0], row[1] || '', row[2] || 'Não', row[3] || 'Não', row[4] || 'Não', row[5] || 'Não', row[6] || 'Não', row[8] || '', row[9] || '', row[10] || '', row[7] || '']);
         }
       }
     }

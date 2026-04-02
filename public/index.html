@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Conta Gráfica - Sistema de Gestão</title>
+<title>Vision - Conta Gráfica - Sistema de Gestão</title>
 <style>
 :root {
-  --primary: #1a56db;
-  --primary-dark: #1e40af;
+  --primary: #0a1f44;
+  --primary-dark: #081833;
   --primary-light: #dbeafe;
+  --accent: #f47520;
+  --accent-dark: #d4631a;
   --success: #059669;
   --warning: #d97706;
   --danger: #dc2626;
@@ -28,7 +30,7 @@
   --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+body { font-family: 'Segoe UI', -apple-system, sans-serif; background: white; color: #1f2937; min-height: 100vh; }
 
 /* Login */
 .login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); }
@@ -39,38 +41,41 @@ body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--gra
 
 /* Layout */
 .app { display: none; }
-.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: var(--gray-900); color: white; padding: 20px 0; overflow-y: auto; z-index: 100; }
-.sidebar .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--gray-700); margin-bottom: 12px; }
-.sidebar .logo h2 { font-size: 18px; color: white; }
-.sidebar .logo small { color: var(--gray-400); font-size: 12px; }
-.sidebar nav a { display: flex; align-items: center; padding: 12px 20px; color: var(--gray-300); text-decoration: none; font-size: 14px; transition: all 0.2s; gap: 10px; }
-.sidebar nav a:hover, .sidebar nav a.active { background: var(--primary-dark); color: white; }
+.hamburger { display: none; position: fixed; top: 20px; left: 20px; background: none; border: none; font-size: 24px; color: var(--primary); cursor: pointer; z-index: 150; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: var(--primary); color: white; padding: 20px 0; overflow-y: auto; z-index: 100; transition: transform 0.3s ease; }
+.sidebar.closed { transform: translateX(-100%); }
+.sidebar .logo { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px; }
+.sidebar .logo svg { width: 40px; height: 40px; margin-bottom: 12px; }
+.sidebar .logo h2 { font-size: 16px; color: white; }
+.sidebar .logo small { color: rgba(255,255,255,0.7); font-size: 11px; }
+.sidebar nav a { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; transition: all 0.2s; gap: 10px; }
+.sidebar nav a:hover, .sidebar nav a.active { background: var(--accent); color: white; }
 .sidebar nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
-.sidebar .user-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 20px; border-top: 1px solid var(--gray-700); background: var(--gray-800); }
+.sidebar .user-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); background: var(--primary-dark); }
 .sidebar .user-info .name { font-size: 14px; font-weight: 600; }
-.sidebar .user-info .email { font-size: 12px; color: var(--gray-400); }
-.sidebar .user-info .logout { margin-top: 8px; background: none; border: 1px solid var(--gray-600); color: var(--gray-300); padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font-size: 12px; width: 100%; }
+.sidebar .user-info .email { font-size: 12px; color: rgba(255,255,255,0.5); }
+.sidebar .user-info .logout { margin-top: 8px; background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font-size: 12px; width: 100%; transition: all 0.2s; }
 .sidebar .user-info .logout:hover { background: var(--danger); border-color: var(--danger); color: white; }
 
-.main { margin-left: 240px; padding: 24px; }
+.main { margin-left: 240px; padding: 24px; transition: margin-left 0.3s ease; }
 .page { display: none; }
 .page.active { display: block; }
 
 /* Header */
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-.page-header h1 { font-size: 24px; color: var(--gray-900); }
+.page-header h1 { font-size: 24px; color: #1f2937; }
 
 /* Cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.card { background: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card { background: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--gray-200); }
 .card .label { font-size: 13px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; }
-.card .value { font-size: 28px; font-weight: 700; color: var(--gray-900); margin-top: 4px; }
+.card .value { font-size: 28px; font-weight: 700; color: #1f2937; margin-top: 4px; }
 .card .value.green { color: var(--success); }
 .card .value.red { color: var(--danger); }
 .card .value.blue { color: var(--primary); }
 
 /* Table */
-.table-wrap { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.table-wrap { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--gray-200); }
 .table-toolbar { padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--gray-200); }
 .table-toolbar input[type="text"] { padding: 8px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; width: 300px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -88,6 +93,8 @@ tr:hover { background: var(--gray-50); }
 .btn { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-dark); }
+.btn-accent { background: var(--accent); color: white; }
+.btn-accent:hover { background: var(--accent-dark); }
 .btn-success { background: var(--success); color: white; }
 .btn-danger { background: var(--danger); color: white; }
 .btn-danger:hover { background: #b91c1c; }
@@ -97,11 +104,12 @@ tr:hover { background: var(--gray-50); }
 
 /* Forms */
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--gray-700); }
+.form-group label { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: #1f2937; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; font-family: inherit; }
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(10,31,68,0.1); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.form-row-2-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 /* Modal */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
@@ -134,29 +142,55 @@ tr:hover { background: var(--gray-50); }
 .toast.error { background: var(--danger); }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-.online-users { display: flex; align-items: center; gap: 6px; padding: 12px 20px; color: var(--gray-400); font-size: 12px; border-bottom: 1px solid var(--gray-700); margin-bottom: 8px; }
+.online-users { display: flex; align-items: center; gap: 6px; padding: 12px 20px; color: rgba(255,255,255,0.5); font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; }
 .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
 
 /* Alert Popup */
 .alert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
 .alert-overlay.show { display: flex; }
 .alert-popup { background: white; border-radius: 12px; width: 650px; max-width: 95vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.alert-popup-header { padding: 20px 24px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 12px; }
+.alert-popup-header { padding: 20px 24px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: white; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 12px; }
 .alert-popup-header svg { width: 28px; height: 28px; flex-shrink: 0; }
 .alert-popup-header h2 { font-size: 18px; }
 .alert-popup-body { padding: 20px 24px; }
 .alert-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: var(--radius); border-left: 4px solid; }
-.alert-item.urgente { background: #fef2f2; border-color: #dc2626; }
-.alert-item.alerta { background: #fffbeb; border-color: #d97706; }
+.alert-item.urgente { background: #fef2f2; border-color: var(--accent); }
+.alert-item.alerta { background: #fffbeb; border-color: var(--warning); }
 .alert-item .alert-info { flex: 1; }
 .alert-item .alert-nome { font-weight: 600; font-size: 14px; }
 .alert-item .alert-detail { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
 .alert-item .alert-saldo { font-family: 'Courier New', monospace; font-weight: 700; font-size: 15px; text-align: right; }
-.alert-item.urgente .alert-saldo { color: #dc2626; }
-.alert-item.alerta .alert-saldo { color: #d97706; }
+.alert-item.urgente .alert-saldo { color: var(--accent); }
+.alert-item.alerta .alert-saldo { color: var(--warning); }
 .alert-popup-footer { padding: 16px 24px; border-top: 1px solid var(--gray-200); text-align: right; }
-.alert-count-badge { position: absolute; top: -4px; right: 12px; background: #dc2626; color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
+.alert-count-badge { position: absolute; top: -4px; right: 12px; background: var(--accent); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
 .nav-alert-wrap { position: relative; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hamburger { display: block; }
+  .sidebar { width: 240px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+  .sidebar.closed { transform: translateX(-100%); }
+  .main { margin-left: 0; padding: 60px 16px 24px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .page-header h1 { font-size: 20px; }
+  .cards { grid-template-columns: 1fr; }
+  .table-toolbar input[type="text"] { width: 100%; }
+  .form-row, .form-row-3, .form-row-2-col { grid-template-columns: 1fr; }
+  .table-toolbar { flex-direction: column; align-items: flex-start; }
+  table { font-size: 13px; }
+  th, td { padding: 8px 12px; }
+  .btn { padding: 6px 12px; font-size: 13px; }
+  .modal { width: 95vw; }
+}
+
+@media (max-width: 480px) {
+  body { font-size: 14px; }
+  .page-header h1 { font-size: 18px; }
+  .card .value { font-size: 24px; }
+  .cards { grid-template-columns: 1fr; gap: 12px; }
+  .btn-sm { padding: 3px 8px; font-size: 12px; }
+}
 </style>
 </head>
 <body>
@@ -164,7 +198,10 @@ tr:hover { background: var(--gray-50); }
 <!-- LOGIN PAGE -->
 <div class="login-page" id="loginPage">
   <div class="login-box">
-    <h1>Conta Gráfica</h1>
+    <svg viewBox="0 0 100 100" style="width:60px;height:60px;margin:0 auto 20px;display:block;">
+      <path d="M 30 25 L 50 45 L 70 25 L 50 45 L 30 65 L 50 45 L 70 65" stroke="#f47520" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Vision - Conta Gráfica</h1>
     <p>Sistema de Gestão de Créditos - Saygo Group</p>
     <div class="error" id="loginError"></div>
     <form id="loginForm">
@@ -183,10 +220,16 @@ tr:hover { background: var(--gray-50); }
 
 <!-- APP -->
 <div class="app" id="app">
+  <!-- Hamburger Menu -->
+  <button class="hamburger" id="hamburger" onclick="toggleSidebar()">☰</button>
+
   <!-- Sidebar -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="logo">
-      <h2>Conta Gráfica</h2>
+      <svg viewBox="0 0 100 100">
+        <path d="M 30 25 L 50 45 L 70 25 L 50 45 L 30 65 L 50 45 L 70 65" stroke="#f47520" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2>Vision</h2>
       <small>Saygo Group</small>
     </div>
     <div class="online-users">
@@ -248,7 +291,7 @@ tr:hover { background: var(--gray-50); }
     <div class="page" id="page-clientes">
       <div class="page-header">
         <h1>Cadastro de Clientes</h1>
-        <button class="btn btn-primary" onclick="openClienteModal()">+ Novo Cliente</button>
+        <button class="btn btn-accent" onclick="openClienteModal()">+ Novo Cliente</button>
       </div>
       <div class="table-wrap">
         <div class="table-toolbar">
@@ -266,7 +309,7 @@ tr:hover { background: var(--gray-50); }
       <div class="page-header">
         <h1>Lançamentos</h1>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary" onclick="openMovModal()">+ Novo Lançamento</button>
+          <button class="btn btn-accent" onclick="openMovModal()">+ Novo Lançamento</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -279,7 +322,7 @@ tr:hover { background: var(--gray-50); }
           </div>
         </div>
         <div class="table-responsive">
-          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Valor Ajustado</th><th>Ações</th></tr></thead>
+          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Ações</th></tr></thead>
           <tbody id="tblMovs"></tbody></table>
         </div>
         <div class="pagination" id="movsPagination"></div>
@@ -331,7 +374,7 @@ tr:hover { background: var(--gray-50); }
               <label style="font-size:12px;">Data Fim</label>
               <input type="date" id="relDataFim" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
             </div>
-            <button class="btn btn-primary" onclick="gerarRelatorio()" style="margin-top:16px;">Gerar Extrato</button>
+            <button class="btn btn-accent" onclick="gerarRelatorio()" style="margin-top:16px;">Gerar Extrato</button>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;">
             <button class="btn btn-success" onclick="exportarExcel()" id="btnExportExcel" style="display:none;">Exportar Excel</button>
@@ -342,7 +385,7 @@ tr:hover { background: var(--gray-50); }
       <div id="relResumo" style="display:none;" class="cards"></div>
       <div class="table-wrap" id="relTabela" style="display:none;">
         <div class="table-responsive">
-          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Valor Ajustado</th></tr></thead>
+          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th></tr></thead>
           <tbody id="tblRelatorio"></tbody>
           <tfoot id="tblRelatorioFoot"></tfoot></table>
         </div>
@@ -385,23 +428,39 @@ tr:hover { background: var(--gray-50); }
           <select id="clienteSala"><option value="Sim">Sim</option><option value="Não">Não</option></select>
         </div>
       </div>
-      <div class="form-row-3">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Parceiro Sala</label>
+          <input type="text" id="clienteParcSala">
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label>Abertura Filial</label>
           <select id="clienteFilial"><option value="Sim">Sim</option><option value="Não">Não</option></select>
         </div>
         <div class="form-group">
-          <label>Reativação IE</label>
-          <select id="clienteIE"><option value="Sim">Sim</option><option value="Não">Não</option></select>
-        </div>
-        <div class="form-group">
-          <label>Conta Gráfica</label>
-          <select id="clienteCG"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <label>Parceiro Filial</label>
+          <input type="text" id="clienteParcFilial">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Cliente Certificado?</label>
+          <label>Reativação IE</label>
+          <select id="clienteIE"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group">
+          <label>Parceiro IE</label>
+          <input type="text" id="clienteParcIE">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Conta Gráfica</label>
+          <select id="clienteCG"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group">
+          <label>Certificado</label>
           <select id="clienteCert"><option value="Sim">Sim</option><option value="Não">Não</option></select>
         </div>
       </div>
@@ -464,15 +523,9 @@ tr:hover { background: var(--gray-50); }
           <input type="number" id="movPerc" step="0.01">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Valor (R$)</label>
-          <input type="number" id="movValor" step="0.01">
-        </div>
-        <div class="form-group">
-          <label>Valor Ajustado (R$)</label>
-          <input type="number" id="movValorAj" step="0.01">
-        </div>
+      <div class="form-group">
+        <label>Valor (R$) *</label>
+        <input type="number" id="movValor" step="0.01" required>
       </div>
     </div>
     <div class="modal-footer">
@@ -523,6 +576,11 @@ tr:hover { background: var(--gray-50); }
 let currentUser = null;
 let clientesCache = [];
 let movsPage = 1;
+
+// ============ SIDEBAR TOGGLE ============
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('closed');
+}
 
 // ============ API HELPERS ============
 async function api(url, opts = {}) {
@@ -603,6 +661,9 @@ document.querySelectorAll('.sidebar nav a').forEach(a => {
   a.addEventListener('click', (e) => {
     e.preventDefault();
     navigateTo(a.dataset.page);
+    if (window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.add('closed');
+    }
   });
 });
 
@@ -656,9 +717,9 @@ function renderClientes(list) {
   document.getElementById('tblClientes').innerHTML = list.map(c => `<tr>
     <td><strong>${c.nome}</strong></td>
     <td>${c.escritorio || '-'}</td>
-    <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : ''}">${c.locacao_sala}</span></td>
-    <td><span class="badge ${c.abertura_filial === 'Sim' ? 'green' : ''}">${c.abertura_filial}</span></td>
-    <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : ''}">${c.reativacao_ie}</span></td>
+    <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : ''}">${c.locacao_sala}</span>${c.parceiro_sala ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_sala + '</div>' : ''}</td>
+    <td><span class="badge ${c.abertura_filial === 'Sim' ? 'green' : ''}">${c.abertura_filial}</span>${c.parceiro_filial ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_filial + '</div>' : ''}</td>
+    <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : ''}">${c.reativacao_ie}</span>${c.parceiro_ie ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_ie + '</div>' : ''}</td>
     <td><span class="badge ${c.conta_grafica === 'Sim' ? 'green' : ''}">${c.conta_grafica}</span></td>
     <td><span class="badge ${c.cliente_certificado === 'Sim' ? 'blue' : ''}">${c.cliente_certificado}</span></td>
     <td style="white-space:nowrap;">
@@ -685,8 +746,11 @@ function openClienteModal(data = null) {
   document.getElementById('clienteNome').value = data ? data.nome : '';
   document.getElementById('clienteEscritorio').value = data ? data.escritorio : 'Pedro';
   document.getElementById('clienteSala').value = data ? data.locacao_sala : 'Sim';
+  document.getElementById('clienteParcSala').value = data ? (data.parceiro_sala || '') : '';
   document.getElementById('clienteFilial').value = data ? data.abertura_filial : 'Sim';
+  document.getElementById('clienteParcFilial').value = data ? (data.parceiro_filial || '') : '';
   document.getElementById('clienteIE').value = data ? data.reativacao_ie : 'Sim';
+  document.getElementById('clienteParcIE').value = data ? (data.parceiro_ie || '') : '';
   document.getElementById('clienteCG').value = data ? data.conta_grafica : 'Sim';
   document.getElementById('clienteCert').value = data ? data.cliente_certificado : 'Sim';
   document.getElementById('clienteObs').value = data ? (data.observacoes || '') : '';
@@ -701,8 +765,11 @@ async function saveCliente() {
     nome: document.getElementById('clienteNome').value,
     escritorio: document.getElementById('clienteEscritorio').value,
     locacao_sala: document.getElementById('clienteSala').value,
+    parceiro_sala: document.getElementById('clienteParcSala').value,
     abertura_filial: document.getElementById('clienteFilial').value,
+    parceiro_filial: document.getElementById('clienteParcFilial').value,
     reativacao_ie: document.getElementById('clienteIE').value,
+    parceiro_ie: document.getElementById('clienteParcIE').value,
     conta_grafica: document.getElementById('clienteCG').value,
     cliente_certificado: document.getElementById('clienteCert').value,
     observacoes: document.getElementById('clienteObs').value
@@ -743,14 +810,15 @@ async function loadMovimentacoes() {
 
   document.getElementById('tblMovs').innerHTML = data.items.map(m => {
     const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
+    const valor = parseFloat(m.valor) || 0;
+    const displayValue = valor >= 0 ? valor : -valor;
     return `<tr>
       <td>${m.cliente_nome || '-'}</td>
       <td><span class="badge ${isCredit ? 'green' : 'red'}">${m.tipo_movimento || '-'}</span></td>
       <td>${formatDate(m.data_nf)}</td>
       <td>${m.duimp_di_processo || '-'}</td>
       <td>${m.parceiro || '-'}</td>
-      <td class="money">${formatMoney(m.valor)}</td>
-      <td class="money">${formatMoney(m.valor_ajustado)}</td>
+      <td class="money ${valor >= 0 ? 'positive' : 'negative'}">${formatMoney(displayValue)}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-sm btn-outline" onclick="editMov(${m.id})">Editar</button>
         <button class="btn btn-sm btn-danger" onclick="deleteMov(${m.id})">Excluir</button>
@@ -779,13 +847,13 @@ function openMovModal(data = null) {
   document.getElementById('movParceiro').value = data ? data.parceiro : 'Pedro';
   document.getElementById('movDataExo').value = data ? (data.data_exoneracao || '') : '';
   document.getElementById('movPerc').value = data ? (data.percentual || '') : '';
-  document.getElementById('movValor').value = data ? data.valor : '';
-  document.getElementById('movValorAj').value = data ? data.valor_ajustado : '';
+  document.getElementById('movValor').value = data ? Math.abs(data.valor) : '';
   document.getElementById('modalMov').classList.add('show');
 }
 
 async function saveMov() {
   const id = document.getElementById('movId').value;
+  const valor = parseFloat(document.getElementById('movValor').value) || 0;
   const body = {
     cliente_id: document.getElementById('movCliente').value,
     tipo_movimento: document.getElementById('movTipo').value,
@@ -794,10 +862,10 @@ async function saveMov() {
     parceiro: document.getElementById('movParceiro').value,
     data_exoneracao: document.getElementById('movDataExo').value || null,
     percentual: document.getElementById('movPerc').value || null,
-    valor: parseFloat(document.getElementById('movValor').value) || 0,
-    valor_ajustado: parseFloat(document.getElementById('movValorAj').value) || 0
+    valor: valor
   };
   if (!body.cliente_id) return toast('Selecione um cliente', 'error');
+  if (valor === 0) return toast('Informe um valor válido', 'error');
   try {
     if (id) await api(`/api/movimentacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     else await api('/api/movimentacoes', { method: 'POST', body: JSON.stringify(body) });
@@ -912,14 +980,13 @@ async function gerarRelatorio() {
 
   const data = await api(`/api/relatorio?${params.toString()}`);
 
-  // Show resumo cards
+  // Show resumo cards with accumulated saldo
   const r = data.resumo;
   document.getElementById('relResumo').style.display = 'grid';
   document.getElementById('relResumo').innerHTML = `
     <div class="card"><div class="label">Total Créditos</div><div class="value green">${formatMoney(r.creditos)}</div></div>
     <div class="card"><div class="label">Total Débitos</div><div class="value red">${formatMoney(r.debitos)}</div></div>
-    <div class="card"><div class="label">Transferências</div><div class="value">${formatMoney(r.transferencias)}</div></div>
-    <div class="card"><div class="label">Saldo Final</div><div class="value ${r.saldo >= 0 ? 'green' : 'red'}">${formatMoney(r.saldo)}</div></div>
+    <div class="card"><div class="label">Saldo Acumulado</div><div class="value ${r.saldo >= 0 ? 'green' : 'red'}">${formatMoney(r.saldo)}</div></div>
   `;
 
   // Show table
@@ -932,14 +999,12 @@ async function gerarRelatorio() {
       <td>${formatDate(m.data_nf)}</td>
       <td>${m.duimp_di_processo || '-'}</td>
       <td>${m.parceiro || '-'}</td>
-      <td class="money">${formatMoney(m.valor)}</td>
-      <td class="money">${formatMoney(m.valor_ajustado)}</td>
+      <td class="money ${parseFloat(m.valor) >= 0 ? 'positive' : 'negative'}">${formatMoney(m.valor)}</td>
     </tr>`;
   }).join('');
 
   document.getElementById('tblRelatorioFoot').innerHTML = `<tr style="background:#f3f4f6;font-weight:bold;">
     <td colspan="5" style="text-align:right;">TOTAIS:</td>
-    <td class="money">${formatMoney(r.creditos + r.debitos + r.transferencias)}</td>
     <td class="money ${r.saldo >= 0 ? 'positive' : 'negative'}">${formatMoney(r.saldo)}</td>
   </tr>`;
 
