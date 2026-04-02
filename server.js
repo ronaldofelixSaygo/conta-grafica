@@ -450,7 +450,7 @@ app.get('/api/relatorio', requireAuth, (req, res) => {
 // ============ EXPORT EXCEL ============
 app.get('/api/relatorio/excel', requireAuth, (req, res) => {
   const { cliente_id, data_inicio, data_fim } = req.query;
-  let sql = `SELECT c.nome as Cliente, m.tipo_movimento as "Tipo Movimento", m.data_nf as "Data NF", m.duimp_di_processo as "DUIMP/DI ou Processo", m.data_exoneracao as "Data Exoneração", m.percentual as "%", m.valor as Valor, m.valor_ajustado as "Valor Ajustado" FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id`;
+  let sql = `SELECT c.nome as Cliente, m.tipo_movimento as "Tipo Movimento", m.data_nf as "Data NF", m.duimp_di_processo as "DUIMP/DI ou Processo", m.data_exoneracao as "Data Exoneração", m.percentual as "%", m.valor_ajustado as Valor FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id`;
   const params = [];
   const conditions = [];
 
@@ -504,7 +504,7 @@ app.get('/api/relatorio/excel', requireAuth, (req, res) => {
   }
 
   const wb = XLSX.utils.book_new();
-  const header = ["Cliente", "Tipo Movimento", "Data NF", "DUIMP/DI ou Processo", "Data Exoneração", "%", "Valor", "Valor Ajustado"];
+  const header = ["Cliente", "Tipo Movimento", "Data NF", "DUIMP/DI ou Processo", "Data Exoneração", "%", "Valor"];
 
   let rows = [header];
   if (result.length > 0) {
@@ -513,7 +513,7 @@ app.get('/api/relatorio/excel', requireAuth, (req, res) => {
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   // Column widths
-  ws['!cols'] = [{ wch: 45 }, { wch: 35 }, { wch: 12 }, { wch: 20 }, { wch: 16 }, { wch: 6 }, { wch: 15 }, { wch: 15 }];
+  ws['!cols'] = [{ wch: 45 }, { wch: 35 }, { wch: 12 }, { wch: 20 }, { wch: 16 }, { wch: 6 }, { wch: 15 }];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
 
@@ -609,7 +609,6 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
     <td>${m.tipo_movimento || '-'}</td>
     <td>${fmtDate(m.data_nf)}</td>
     <td>${m.duimp_di_processo || '-'}</td>
-    <td style="text-align:right;">${fmtMoney(m.valor)}</td>
     <td style="text-align:right;">${fmtMoney(m.valor_ajustado)}</td>
   </tr>`).join('');
 
@@ -655,7 +654,7 @@ app.get('/api/relatorio/pdf', requireAuth, (req, res) => {
   <div class="card red"><div class="lbl">Débitos</div><div class="val">${fmtMoney(debitos)}</div></div>
   <div class="card ${saldo >= 0 ? 'blue' : 'red'}"><div class="lbl">Saldo</div><div class="val">${fmtMoney(saldo)}</div></div>
 </div>
-<table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Valor</th><th>Valor Ajustado</th></tr></thead>
+<table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Valor</th></tr></thead>
 <tbody>${rowsHtml}</tbody></table>
 <div class="footer">Relatório gerado em ${new Date().toLocaleString('pt-BR')} — Sistema Conta Gráfica — Saygo Group</div>
 </body></html>`;
