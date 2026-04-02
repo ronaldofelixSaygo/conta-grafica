@@ -1,0 +1,29 @@
+SISTEMA CONTA GRAFICA - INSTRUCOES DE USO
+==========================================
+
+REQUISITOS:
+- Node.js instalado (versao 18+)
+  Download: https://nodejs.org
+
+COMO RODAR:
+1. Abra o Prompt de Comando (cmd) ou PowerShell
+2. Navegue ate a pasta: cd C:\Users\RonaldoFelix\Documents\conta-grafica
+3. Execute: npm install
+4. Execute: node server.js
+5. Abra o navegador em: http://localhost:3000
+
+USUARIOS PRE-CADASTRADOS:
+- Admin: admin@saygogroup.com.br / senha: admin123
+- Ronaldo: ronaldo.felix@saygogroup.com.br / senha: 123456
+
+FUNCIONALIDADES:
+- Dashboard com resumo de creditos, debitos e saldos
+- Cadastro de clientes (incluir, alterar, excluir)
+- Lancamentos / movimentacoes (incluir, alterar, excluir)
+- Saldos calculados automaticamente
+- Gestao de usuarios (criar novos usuarios para acesso simultaneo)
+- Log de auditoria (quem fez o que e quando)
+- Multiusuario: varias pessoas podem acessar ao mesmo tempo
+
+DADOS:
+- Os 29 clientes e 3585 lancamentos da planilha ja estao importados no banco de dados (database.sqlite)

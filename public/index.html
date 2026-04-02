@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conta Gráfica - Sistema de Gestão</title>
+<style>
+:root {
+  --primary: #1a56db;
+  --primary-dark: #1e40af;
+  --primary-light: #dbeafe;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+
+/* Login */
+.login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); }
+.login-box { background: white; border-radius: 12px; padding: 40px; width: 400px; box-shadow: var(--shadow-md); }
+.login-box h1 { color: var(--primary); font-size: 24px; margin-bottom: 8px; }
+.login-box p { color: var(--gray-500); margin-bottom: 24px; font-size: 14px; }
+.login-box .error { background: var(--danger-light); color: var(--danger); padding: 10px; border-radius: var(--radius); margin-bottom: 16px; font-size: 14px; display: none; }
+
+/* Layout */
+.app { display: none; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: var(--gray-900); color: white; padding: 20px 0; overflow-y: auto; z-index: 100; }
+.sidebar .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--gray-700); margin-bottom: 12px; }
+.sidebar .logo h2 { font-size: 18px; color: white; }
+.sidebar .logo small { color: var(--gray-400); font-size: 12px; }
+.sidebar nav a { display: flex; align-items: center; padding: 12px 20px; color: var(--gray-300); text-decoration: none; font-size: 14px; transition: all 0.2s; gap: 10px; }
+.sidebar nav a:hover, .sidebar nav a.active { background: var(--primary-dark); color: white; }
+.sidebar nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar .user-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 20px; border-top: 1px solid var(--gray-700); background: var(--gray-800); }
+.sidebar .user-info .name { font-size: 14px; font-weight: 600; }
+.sidebar .user-info .email { font-size: 12px; color: var(--gray-400); }
+.sidebar .user-info .logout { margin-top: 8px; background: none; border: 1px solid var(--gray-600); color: var(--gray-300); padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font-size: 12px; width: 100%; }
+.sidebar .user-info .logout:hover { background: var(--danger); border-color: var(--danger); color: white; }
+
+.main { margin-left: 240px; padding: 24px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Header */
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-header h1 { font-size: 24px; color: var(--gray-900); }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card { background: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card .label { font-size: 13px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; }
+.card .value { font-size: 28px; font-weight: 700; color: var(--gray-900); margin-top: 4px; }
+.card .value.green { color: var(--success); }
+.card .value.red { color: var(--danger); }
+.card .value.blue { color: var(--primary); }
+
+/* Table */
+.table-wrap { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.table-toolbar { padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--gray-200); }
+.table-toolbar input[type="text"] { padding: 8px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; width: 300px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead { background: var(--gray-50); }
+th { padding: 12px 16px; text-align: left; font-weight: 600; color: var(--gray-600); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border-bottom: 2px solid var(--gray-200); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); }
+tr:hover { background: var(--gray-50); }
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.badge.green { background: #d1fae5; color: #065f46; }
+.badge.yellow { background: #fef3c7; color: #92400e; }
+.badge.red { background: #fee2e2; color: #991b1b; }
+.badge.blue { background: #dbeafe; color: #1e40af; }
+
+/* Buttons */
+.btn { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-success { background: var(--success); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sm { padding: 4px 10px; font-size: 13px; }
+.btn-outline { background: white; border: 1px solid var(--gray-300); color: var(--gray-700); }
+.btn-outline:hover { background: var(--gray-50); }
+
+/* Forms */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--gray-700); }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; font-family: inherit; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: white; border-radius: 12px; width: 600px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h2 { font-size: 18px; }
+.modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-400); }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; align-items: center; padding: 16px; gap: 8px; }
+.pagination button { padding: 6px 12px; border: 1px solid var(--gray-300); border-radius: var(--radius); background: white; cursor: pointer; font-size: 14px; }
+.pagination button:hover { background: var(--gray-100); }
+.pagination button.active { background: var(--primary); color: white; border-color: var(--primary); }
+.pagination span { font-size: 14px; color: var(--gray-500); }
+
+/* Money */
+.money { font-family: 'Courier New', monospace; font-weight: 600; text-align: right; }
+.money.positive { color: var(--success); }
+.money.negative { color: var(--danger); }
+
+/* Responsive table */
+.table-responsive { overflow-x: auto; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: var(--radius); color: white; font-size: 14px; z-index: 300; animation: slideIn 0.3s ease; }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.online-users { display: flex; align-items: center; gap: 6px; padding: 12px 20px; color: var(--gray-400); font-size: 12px; border-bottom: 1px solid var(--gray-700); margin-bottom: 8px; }
+.online-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+
+/* Alert Popup */
+.alert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
+.alert-overlay.show { display: flex; }
+.alert-popup { background: white; border-radius: 12px; width: 650px; max-width: 95vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.alert-popup-header { padding: 20px 24px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 12px; }
+.alert-popup-header svg { width: 28px; height: 28px; flex-shrink: 0; }
+.alert-popup-header h2 { font-size: 18px; }
+.alert-popup-body { padding: 20px 24px; }
+.alert-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: var(--radius); border-left: 4px solid; }
+.alert-item.urgente { background: #fef2f2; border-color: #dc2626; }
+.alert-item.alerta { background: #fffbeb; border-color: #d97706; }
+.alert-item .alert-info { flex: 1; }
+.alert-item .alert-nome { font-weight: 600; font-size: 14px; }
+.alert-item .alert-detail { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.alert-item .alert-saldo { font-family: 'Courier New', monospace; font-weight: 700; font-size: 15px; text-align: right; }
+.alert-item.urgente .alert-saldo { color: #dc2626; }
+.alert-item.alerta .alert-saldo { color: #d97706; }
+.alert-popup-footer { padding: 16px 24px; border-top: 1px solid var(--gray-200); text-align: right; }
+.alert-count-badge { position: absolute; top: -4px; right: 12px; background: #dc2626; color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
+.nav-alert-wrap { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h1>Conta Gráfica</h1>
+    <p>Sistema de Gestão de Créditos - Saygo Group</p>
+    <div class="error" id="loginError"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="loginPassword" required placeholder="••••••">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <h2>Conta Gráfica</h2>
+      <small>Saygo Group</small>
+    </div>
+    <div class="online-users">
+      <span class="online-dot"></span>
+      <span id="onlineCount">1 usuário online</span>
+    </div>
+    <nav>
+      <a href="#" data-page="dashboard" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a href="#" data-page="clientes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Clientes
+      </a>
+      <a href="#" data-page="lancamentos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Lançamentos
+      </a>
+      <a href="#" data-page="saldos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Saldos
+      </a>
+      <a href="#" data-page="relatorios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Relatórios
+      </a>
+      <a href="#" data-page="usuarios" id="navUsuarios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Usuários
+      </a>
+      <a href="#" data-page="auditoria" id="navAuditoria">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+        Auditoria
+      </a>
+    </nav>
+    <div class="user-info">
+      <div class="name" id="userName"></div>
+      <div class="email" id="userEmail"></div>
+      <button class="logout" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header"><h1>Dashboard</h1></div>
+      <div class="cards" id="dashCards"></div>
+      <div class="table-wrap">
+        <div class="table-toolbar"><strong>Situação dos Saldos</strong></div>
+        <div class="table-responsive">
+          <table><thead><tr><th>Cliente</th><th>Escritório</th><th>Créditos</th><th>Débitos</th><th>Saldo</th><th>Situação</th></tr></thead>
+          <tbody id="dashSaldos"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page" id="page-clientes">
+      <div class="page-header">
+        <h1>Cadastro de Clientes</h1>
+        <button class="btn btn-primary" onclick="openClienteModal()">+ Novo Cliente</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input type="text" placeholder="Buscar cliente..." id="searchClientes" oninput="filterClientes()">
+        </div>
+        <div class="table-responsive">
+          <table><thead><tr><th>Nome</th><th>Escritório</th><th>Sala</th><th>Filial</th><th>IE</th><th>Conta Gráfica</th><th>Certificado</th><th>Ações</th></tr></thead>
+          <tbody id="tblClientes"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LANCAMENTOS -->
+    <div class="page" id="page-lancamentos">
+      <div class="page-header">
+        <h1>Lançamentos</h1>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="openMovModal()">+ Novo Lançamento</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input type="text" placeholder="Buscar por cliente ou processo..." id="searchMovs" onkeyup="if(event.key==='Enter')loadMovimentacoes()">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="filterCliente" onchange="loadMovimentacoes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+              <option value="">Todos os clientes</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Valor Ajustado</th><th>Ações</th></tr></thead>
+          <tbody id="tblMovs"></tbody></table>
+        </div>
+        <div class="pagination" id="movsPagination"></div>
+      </div>
+    </div>
+
+    <!-- SALDOS -->
+    <div class="page" id="page-saldos">
+      <div class="page-header"><h1>Saldos</h1></div>
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table><thead><tr><th>Cliente</th><th>Escritório</th><th>Certificado</th><th>Créditos</th><th>Débitos</th><th>Transferências</th><th>Saldo</th><th>Média Operação</th><th>Situação</th></tr></thead>
+          <tbody id="tblSaldos"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="page-header">
+        <h1>Usuários</h1>
+        <button class="btn btn-primary" onclick="openUserModal()">+ Novo Usuário</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table><thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Criado em</th><th>Ações</th></tr></thead>
+          <tbody id="tblUsers"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATORIOS -->
+    <div class="page" id="page-relatorios">
+      <div class="page-header"><h1>Relatórios - Extrato por Cliente</h1></div>
+      <div class="table-wrap" style="margin-bottom:24px;">
+        <div class="table-toolbar" style="flex-wrap:wrap;">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;min-width:250px;">
+              <label style="font-size:12px;">Cliente</label>
+              <select id="relCliente" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;width:100%;">
+                <option value="">Todos os clientes</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:12px;">Data Início</label>
+              <input type="date" id="relDataInicio" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label style="font-size:12px;">Data Fim</label>
+              <input type="date" id="relDataFim" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+            </div>
+            <button class="btn btn-primary" onclick="gerarRelatorio()" style="margin-top:16px;">Gerar Extrato</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button class="btn btn-success" onclick="exportarExcel()" id="btnExportExcel" style="display:none;">Exportar Excel</button>
+            <button class="btn btn-danger" onclick="exportarPDF()" id="btnExportPDF" style="display:none;">Exportar PDF</button>
+          </div>
+        </div>
+      </div>
+      <div id="relResumo" style="display:none;" class="cards"></div>
+      <div class="table-wrap" id="relTabela" style="display:none;">
+        <div class="table-responsive">
+          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Valor Ajustado</th></tr></thead>
+          <tbody id="tblRelatorio"></tbody>
+          <tfoot id="tblRelatorioFoot"></tfoot></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDITORIA -->
+    <div class="page" id="page-auditoria">
+      <div class="page-header"><h1>Log de Auditoria</h1></div>
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table><thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr></thead>
+          <tbody id="tblAudit"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay" id="modalCliente">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalClienteTitle">Novo Cliente</h2>
+      <button class="modal-close" onclick="closeModal('modalCliente')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="clienteId">
+      <div class="form-group">
+        <label>Nome do Cliente *</label>
+        <input type="text" id="clienteNome" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Escritório</label>
+          <select id="clienteEscritorio"><option value="Pedro">Pedro</option><option value="Pitágoras">Pitágoras</option></select>
+        </div>
+        <div class="form-group">
+          <label>Locação Sala</label>
+          <select id="clienteSala"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Abertura Filial</label>
+          <select id="clienteFilial"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group">
+          <label>Reativação IE</label>
+          <select id="clienteIE"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+        <div class="form-group">
+          <label>Conta Gráfica</label>
+          <select id="clienteCG"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente Certificado?</label>
+          <select id="clienteCert"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea id="clienteObs" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalCliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMENTACAO -->
+<div class="modal-overlay" id="modalMov">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalMovTitle">Novo Lançamento</h2>
+      <button class="modal-close" onclick="closeModal('modalMov')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="movId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente *</label>
+          <select id="movCliente" required></select>
+        </div>
+        <div class="form-group">
+          <label>Tipo Movimento *</label>
+          <select id="movTipo">
+            <option value="Créditos Reconhecidos e Cedidos">Créditos Reconhecidos e Cedidos</option>
+            <option value="Débitos de Liquidações">Débitos de Liquidações</option>
+            <option value="Débitos de Transferências">Débitos de Transferências</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data NF</label>
+          <input type="date" id="movDataNF">
+        </div>
+        <div class="form-group">
+          <label>DUIMP/DI ou Processo</label>
+          <input type="text" id="movProcesso">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Parceiro</label>
+          <select id="movParceiro"><option value="Pedro">Pedro</option><option value="Pitágoras">Pitágoras</option></select>
+        </div>
+        <div class="form-group">
+          <label>Data Exoneração</label>
+          <input type="date" id="movDataExo">
+        </div>
+        <div class="form-group">
+          <label>%</label>
+          <input type="number" id="movPerc" step="0.01">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="number" id="movValor" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Valor Ajustado (R$)</label>
+          <input type="number" id="movValorAj" step="0.01">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalMov')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMov()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUARIO -->
+<div class="modal-overlay" id="modalUser">
+  <div class="modal" style="width:450px;">
+    <div class="modal-header">
+      <h2>Novo Usuário</h2>
+      <button class="modal-close" onclick="closeModal('modalUser')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome *</label><input type="text" id="userNewName"></div>
+      <div class="form-group"><label>Email *</label><input type="email" id="userNewEmail"></div>
+      <div class="form-group"><label>Senha *</label><input type="password" id="userNewPass"></div>
+      <div class="form-group"><label>Perfil</label><select id="userNewRole"><option value="user">Usuário</option><option value="admin">Administrador</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalUser')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveUser()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP ALERTA SALDO BAIXO -->
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-popup">
+    <div class="alert-popup-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <h2>Alerta de Saldo Baixo</h2>
+        <div style="font-size:13px;opacity:0.9;">Clientes com saldo menor que a média das operações</div>
+      </div>
+    </div>
+    <div class="alert-popup-body" id="alertBody"></div>
+    <div class="alert-popup-footer">
+      <button class="btn btn-primary" onclick="document.getElementById('alertOverlay').classList.remove('show')">Entendi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentUser = null;
+let clientesCache = [];
+let movsPage = 1;
+
+// ============ API HELPERS ============
+async function api(url, opts = {}) {
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Erro');
+  return data;
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function formatMoney(v) {
+  if (v == null || isNaN(v)) return 'R$ 0,00';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDate(d) {
+  if (!d) return '-';
+  if (d.includes('-')) { const p = d.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
+  return d;
+}
+
+// ============ AUTH ============
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('loginError');
+  try {
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value })
+    });
+    currentUser = data.user;
+    showApp();
+  } catch (e) {
+    errEl.style.display = 'block';
+    errEl.textContent = e.message;
+  }
+});
+
+async function checkAuth() {
+  try {
+    const data = await api('/api/auth/me');
+    currentUser = data.user;
+    showApp();
+  } catch { /* not logged in */ }
+}
+
+async function logout() {
+  await api('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userEmail').textContent = currentUser.email;
+
+  if (currentUser.role !== 'admin') {
+    document.getElementById('navUsuarios').style.display = 'none';
+    document.getElementById('navAuditoria').style.display = 'none';
+  }
+
+  navigateTo('dashboard');
+  setTimeout(() => checkAlertasSaldo(), 1500);
+}
+
+// ============ NAVIGATION ============
+document.querySelectorAll('.sidebar nav a').forEach(a => {
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    navigateTo(a.dataset.page);
+  });
+});
+
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'clientes') loadClientes();
+  if (page === 'lancamentos') loadMovimentacoes();
+  if (page === 'saldos') loadSaldos();
+  if (page === 'relatorios') loadRelatorioPage();
+  if (page === 'usuarios') loadUsers();
+  if (page === 'auditoria') loadAudit();
+}
+
+// ============ DASHBOARD ============
+async function loadDashboard() {
+  const dash = await api('/api/dashboard');
+  document.getElementById('dashCards').innerHTML = `
+    <div class="card"><div class="label">Clientes</div><div class="value blue">${dash.total_clientes}</div></div>
+    <div class="card"><div class="label">Lançamentos</div><div class="value">${dash.total_movimentacoes.toLocaleString('pt-BR')}</div></div>
+    <div class="card"><div class="label">Total Créditos</div><div class="value green">${formatMoney(dash.total_creditos)}</div></div>
+    <div class="card"><div class="label">Total Débitos</div><div class="value red">${formatMoney(dash.total_debitos)}</div></div>
+    <div class="card"><div class="label">Usuários Ativos</div><div class="value blue">${dash.total_usuarios}</div></div>
+  `;
+
+  const saldos = await api('/api/saldos');
+  document.getElementById('dashSaldos').innerHTML = saldos.map(s => {
+    let badge = s.situacao === 'Normal' ? 'green' : s.situacao.includes('Urgente') ? 'red' : 'yellow';
+    return `<tr>
+      <td>${s.nome}</td><td>${s.escritorio || '-'}</td>
+      <td class="money positive">${formatMoney(s.creditos)}</td>
+      <td class="money negative">${formatMoney(s.debitos)}</td>
+      <td class="money ${s.saldo >= 0 ? 'positive' : 'negative'}">${formatMoney(s.saldo)}</td>
+      <td><span class="badge ${badge}">${s.situacao}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ CLIENTES ============
+async function loadClientes() {
+  clientesCache = await api('/api/clientes');
+  renderClientes(clientesCache);
+  populateClienteDropdowns();
+}
+
+function renderClientes(list) {
+  document.getElementById('tblClientes').innerHTML = list.map(c => `<tr>
+    <td><strong>${c.nome}</strong></td>
+    <td>${c.escritorio || '-'}</td>
+    <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : ''}">${c.locacao_sala}</span></td>
+    <td><span class="badge ${c.abertura_filial === 'Sim' ? 'green' : ''}">${c.abertura_filial}</span></td>
+    <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : ''}">${c.reativacao_ie}</span></td>
+    <td><span class="badge ${c.conta_grafica === 'Sim' ? 'green' : ''}">${c.conta_grafica}</span></td>
+    <td><span class="badge ${c.cliente_certificado === 'Sim' ? 'blue' : ''}">${c.cliente_certificado}</span></td>
+    <td style="white-space:nowrap;">
+      <button class="btn btn-sm btn-outline" onclick="editCliente(${c.id})">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteCliente(${c.id},'${c.nome.replace(/'/g,"\\'")}')">Excluir</button>
+    </td>
+  </tr>`).join('');
+}
+
+function filterClientes() {
+  const q = document.getElementById('searchClientes').value.toLowerCase();
+  renderClientes(clientesCache.filter(c => c.nome.toLowerCase().includes(q)));
+}
+
+function populateClienteDropdowns() {
+  const opts = clientesCache.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  document.getElementById('movCliente').innerHTML = '<option value="">Selecione...</option>' + opts;
+  document.getElementById('filterCliente').innerHTML = '<option value="">Todos os clientes</option>' + opts;
+}
+
+function openClienteModal(data = null) {
+  document.getElementById('modalClienteTitle').textContent = data ? 'Editar Cliente' : 'Novo Cliente';
+  document.getElementById('clienteId').value = data ? data.id : '';
+  document.getElementById('clienteNome').value = data ? data.nome : '';
+  document.getElementById('clienteEscritorio').value = data ? data.escritorio : 'Pedro';
+  document.getElementById('clienteSala').value = data ? data.locacao_sala : 'Sim';
+  document.getElementById('clienteFilial').value = data ? data.abertura_filial : 'Sim';
+  document.getElementById('clienteIE').value = data ? data.reativacao_ie : 'Sim';
+  document.getElementById('clienteCG').value = data ? data.conta_grafica : 'Sim';
+  document.getElementById('clienteCert').value = data ? data.cliente_certificado : 'Sim';
+  document.getElementById('clienteObs').value = data ? (data.observacoes || '') : '';
+  document.getElementById('modalCliente').classList.add('show');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+async function saveCliente() {
+  const id = document.getElementById('clienteId').value;
+  const body = {
+    nome: document.getElementById('clienteNome').value,
+    escritorio: document.getElementById('clienteEscritorio').value,
+    locacao_sala: document.getElementById('clienteSala').value,
+    abertura_filial: document.getElementById('clienteFilial').value,
+    reativacao_ie: document.getElementById('clienteIE').value,
+    conta_grafica: document.getElementById('clienteCG').value,
+    cliente_certificado: document.getElementById('clienteCert').value,
+    observacoes: document.getElementById('clienteObs').value
+  };
+  if (!body.nome) return toast('Nome é obrigatório', 'error');
+  try {
+    if (id) await api(`/api/clientes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/api/clientes', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('modalCliente');
+    toast(id ? 'Cliente atualizado!' : 'Cliente criado!');
+    loadClientes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function editCliente(id) {
+  const c = clientesCache.find(x => x.id === id);
+  if (c) openClienteModal(c);
+}
+
+async function deleteCliente(id, nome) {
+  if (!confirm(`Tem certeza que deseja excluir o cliente "${nome}"?\nTodas as movimentações serão excluídas também.`)) return;
+  try {
+    await api(`/api/clientes/${id}`, { method: 'DELETE' });
+    toast('Cliente excluído!');
+    loadClientes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============ MOVIMENTACOES ============
+async function loadMovimentacoes() {
+  if (clientesCache.length === 0) {
+    clientesCache = await api('/api/clientes');
+    populateClienteDropdowns();
+  }
+  const search = document.getElementById('searchMovs').value;
+  const clienteId = document.getElementById('filterCliente').value;
+  const data = await api(`/api/movimentacoes?page=${movsPage}&limit=50&search=${encodeURIComponent(search)}&cliente_id=${clienteId}`);
+
+  document.getElementById('tblMovs').innerHTML = data.items.map(m => {
+    const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
+    return `<tr>
+      <td>${m.cliente_nome || '-'}</td>
+      <td><span class="badge ${isCredit ? 'green' : 'red'}">${m.tipo_movimento || '-'}</span></td>
+      <td>${formatDate(m.data_nf)}</td>
+      <td>${m.duimp_di_processo || '-'}</td>
+      <td>${m.parceiro || '-'}</td>
+      <td class="money">${formatMoney(m.valor)}</td>
+      <td class="money">${formatMoney(m.valor_ajustado)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm btn-outline" onclick="editMov(${m.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteMov(${m.id})">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  let pagHtml = '';
+  if (data.pages > 1) {
+    pagHtml += `<button ${movsPage <= 1 ? 'disabled' : ''} onclick="movsPage--;loadMovimentacoes();">&laquo;</button>`;
+    pagHtml += `<span>Página ${data.page} de ${data.pages} (${data.total} registros)</span>`;
+    pagHtml += `<button ${movsPage >= data.pages ? 'disabled' : ''} onclick="movsPage++;loadMovimentacoes();">&raquo;</button>`;
+  }
+  document.getElementById('movsPagination').innerHTML = pagHtml;
+}
+
+let movsCache = [];
+function openMovModal(data = null) {
+  document.getElementById('modalMovTitle').textContent = data ? 'Editar Lançamento' : 'Novo Lançamento';
+  document.getElementById('movId').value = data ? data.id : '';
+  document.getElementById('movCliente').value = data ? data.cliente_id : '';
+  document.getElementById('movTipo').value = data ? data.tipo_movimento : 'Créditos Reconhecidos e Cedidos';
+  document.getElementById('movDataNF').value = data ? data.data_nf : '';
+  document.getElementById('movProcesso').value = data ? (data.duimp_di_processo || '') : '';
+  document.getElementById('movParceiro').value = data ? data.parceiro : 'Pedro';
+  document.getElementById('movDataExo').value = data ? (data.data_exoneracao || '') : '';
+  document.getElementById('movPerc').value = data ? (data.percentual || '') : '';
+  document.getElementById('movValor').value = data ? data.valor : '';
+  document.getElementById('movValorAj').value = data ? data.valor_ajustado : '';
+  document.getElementById('modalMov').classList.add('show');
+}
+
+async function saveMov() {
+  const id = document.getElementById('movId').value;
+  const body = {
+    cliente_id: document.getElementById('movCliente').value,
+    tipo_movimento: document.getElementById('movTipo').value,
+    data_nf: document.getElementById('movDataNF').value,
+    duimp_di_processo: document.getElementById('movProcesso').value,
+    parceiro: document.getElementById('movParceiro').value,
+    data_exoneracao: document.getElementById('movDataExo').value || null,
+    percentual: document.getElementById('movPerc').value || null,
+    valor: parseFloat(document.getElementById('movValor').value) || 0,
+    valor_ajustado: parseFloat(document.getElementById('movValorAj').value) || 0
+  };
+  if (!body.cliente_id) return toast('Selecione um cliente', 'error');
+  try {
+    if (id) await api(`/api/movimentacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/api/movimentacoes', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('modalMov');
+    toast(id ? 'Lançamento atualizado!' : 'Lançamento criado!');
+    loadMovimentacoes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function editMov(id) {
+  const data = await api(`/api/movimentacoes?page=1&limit=5000`);
+  const m = data.items.find(x => x.id === id);
+  if (m) openMovModal(m);
+}
+
+async function deleteMov(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  try {
+    await api(`/api/movimentacoes/${id}`, { method: 'DELETE' });
+    toast('Lançamento excluído!');
+    loadMovimentacoes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============ SALDOS ============
+async function loadSaldos() {
+  const saldos = await api('/api/saldos');
+  document.getElementById('tblSaldos').innerHTML = saldos.map(s => {
+    let badge = s.situacao === 'Normal' ? 'green' : s.situacao.includes('Urgente') ? 'red' : 'yellow';
+    return `<tr>
+      <td><strong>${s.nome}</strong></td>
+      <td>${s.escritorio || '-'}</td>
+      <td>${s.cliente_certificado || '-'}</td>
+      <td class="money positive">${formatMoney(s.creditos)}</td>
+      <td class="money negative">${formatMoney(s.debitos)}</td>
+      <td class="money">${formatMoney(s.transferencias)}</td>
+      <td class="money ${s.saldo >= 0 ? 'positive' : 'negative'}">${formatMoney(s.saldo)}</td>
+      <td class="money">${formatMoney(s.media_operacao)}</td>
+      <td><span class="badge ${badge}">${s.situacao}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ USERS ============
+async function loadUsers() {
+  const users = await api('/api/users');
+  document.getElementById('tblUsers').innerHTML = users.map(u => `<tr>
+    <td>${u.name}</td><td>${u.email}</td>
+    <td><span class="badge ${u.role === 'admin' ? 'blue' : 'green'}">${u.role === 'admin' ? 'Administrador' : 'Usuário'}</span></td>
+    <td>${u.created_at || '-'}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Excluir</button></td>
+  </tr>`).join('');
+}
+
+function openUserModal() { document.getElementById('modalUser').classList.add('show'); }
+
+async function saveUser() {
+  const body = {
+    name: document.getElementById('userNewName').value,
+    email: document.getElementById('userNewEmail').value,
+    password: document.getElementById('userNewPass').value,
+    role: document.getElementById('userNewRole').value
+  };
+  if (!body.name || !body.email || !body.password) return toast('Preencha todos os campos', 'error');
+  try {
+    await api('/api/users', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('modalUser');
+    toast('Usuário criado!');
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteUser(id) {
+  if (!confirm('Excluir este usuário?')) return;
+  try {
+    await api(`/api/users/${id}`, { method: 'DELETE' });
+    toast('Usuário excluído!');
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============ AUDIT ============
+async function loadAudit() {
+  const logs = await api('/api/audit');
+  document.getElementById('tblAudit').innerHTML = logs.map(l => `<tr>
+    <td>${l.created_at || '-'}</td>
+    <td>${l.user_name || '-'}</td>
+    <td><span class="badge blue">${l.action}</span></td>
+    <td>${l.entity}</td>
+    <td>${l.details || '-'}</td>
+  </tr>`).join('');
+}
+
+// ============ RELATORIOS ============
+async function loadRelatorioPage() {
+  if (clientesCache.length === 0) {
+    clientesCache = await api('/api/clientes');
+  }
+  const opts = clientesCache.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  document.getElementById('relCliente').innerHTML = '<option value="">Todos os clientes</option>' + opts;
+}
+
+async function gerarRelatorio() {
+  const clienteId = document.getElementById('relCliente').value;
+  const dataInicio = document.getElementById('relDataInicio').value;
+  const dataFim = document.getElementById('relDataFim').value;
+
+  const params = new URLSearchParams();
+  if (clienteId) params.set('cliente_id', clienteId);
+  if (dataInicio) params.set('data_inicio', dataInicio);
+  if (dataFim) params.set('data_fim', dataFim);
+
+  const data = await api(`/api/relatorio?${params.toString()}`);
+
+  // Show resumo cards
+  const r = data.resumo;
+  document.getElementById('relResumo').style.display = 'grid';
+  document.getElementById('relResumo').innerHTML = `
+    <div class="card"><div class="label">Total Créditos</div><div class="value green">${formatMoney(r.creditos)}</div></div>
+    <div class="card"><div class="label">Total Débitos</div><div class="value red">${formatMoney(r.debitos)}</div></div>
+    <div class="card"><div class="label">Transferências</div><div class="value">${formatMoney(r.transferencias)}</div></div>
+    <div class="card"><div class="label">Saldo Final</div><div class="value ${r.saldo >= 0 ? 'green' : 'red'}">${formatMoney(r.saldo)}</div></div>
+  `;
+
+  // Show table
+  document.getElementById('relTabela').style.display = 'block';
+  document.getElementById('tblRelatorio').innerHTML = data.items.map(m => {
+    const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
+    return `<tr>
+      <td>${m.cliente_nome || '-'}</td>
+      <td><span class="badge ${isCredit ? 'green' : 'red'}">${m.tipo_movimento || '-'}</span></td>
+      <td>${formatDate(m.data_nf)}</td>
+      <td>${m.duimp_di_processo || '-'}</td>
+      <td>${m.parceiro || '-'}</td>
+      <td class="money">${formatMoney(m.valor)}</td>
+      <td class="money">${formatMoney(m.valor_ajustado)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tblRelatorioFoot').innerHTML = `<tr style="background:#f3f4f6;font-weight:bold;">
+    <td colspan="5" style="text-align:right;">TOTAIS:</td>
+    <td class="money">${formatMoney(r.creditos + r.debitos + r.transferencias)}</td>
+    <td class="money ${r.saldo >= 0 ? 'positive' : 'negative'}">${formatMoney(r.saldo)}</td>
+  </tr>`;
+
+  // Show export buttons
+  document.getElementById('btnExportExcel').style.display = 'inline-flex';
+  document.getElementById('btnExportPDF').style.display = 'inline-flex';
+
+  toast(`Extrato gerado: ${data.items.length} lançamentos`);
+}
+
+function getRelParams() {
+  const params = new URLSearchParams();
+  const c = document.getElementById('relCliente').value;
+  const di = document.getElementById('relDataInicio').value;
+  const df = document.getElementById('relDataFim').value;
+  if (c) params.set('cliente_id', c);
+  if (di) params.set('data_inicio', di);
+  if (df) params.set('data_fim', df);
+  return params.toString();
+}
+
+function exportarExcel() {
+  window.open(`/api/relatorio/excel?${getRelParams()}`, '_blank');
+}
+
+function exportarPDF() {
+  window.open(`/api/relatorio/pdf?${getRelParams()}`, '_blank');
+}
+
+// ============ ALERTAS POPUP SALDO BAIXO ============
+async function checkAlertasSaldo() {
+  try {
+    const alertas = await api('/api/alertas');
+    if (alertas.length === 0) return;
+
+    let html = '';
+    alertas.forEach(a => {
+      const tipo = a.tipo === 'urgente' ? 'urgente' : 'alerta';
+      const label = a.tipo === 'urgente' ? 'URGENTE' : 'ALERTA';
+      html += `<div class="alert-item ${tipo}">
+        <div class="alert-info">
+          <div class="alert-nome">${a.nome}</div>
+          <div class="alert-detail">Escritório: ${a.escritorio || '-'} | Média Operação: ${formatMoney(a.media_operacao)} | <strong>${label}</strong></div>
+        </div>
+        <div class="alert-saldo">Saldo: ${formatMoney(a.saldo)}</div>
+      </div>`;
+    });
+
+    document.getElementById('alertBody').innerHTML =
+      `<p style="margin-bottom:12px;color:var(--gray-600);font-size:14px;">Os seguintes clientes possuem saldo inferior à média de suas operações e precisam de atenção:</p>` + html;
+    document.getElementById('alertOverlay').classList.add('show');
+  } catch {}
+}
+
+// ============ ONLINE USERS (polling) ============
+setInterval(async () => {
+  try {
+    const dash = await api('/api/dashboard');
+    document.getElementById('onlineCount').textContent = `${dash.total_usuarios} usuários cadastrados`;
+  } catch {}
+}, 30000);
+
+// Init
+checkAuth();
+</script>
+</body>
+</html>
