@@ -226,8 +226,10 @@ tr:hover { background: var(--gray-50); }
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
     <div class="logo">
-      <img src="logo-saygo-icon-white.png" alt="Saygo" style="width:36px;height:36px;margin-bottom:8px;object-fit:contain;">
-      <h2 style="margin-top:0;">Vision</h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <img src="logo-saygo-icon-white.png" alt="Saygo" style="width:36px;height:36px;object-fit:contain;">
+        <h2 style="margin:0;font-size:22px;">Vision</h2>
+      </div>
       <small>Conta Gráfica - Saygo Group</small>
     </div>
     <div class="online-users">
@@ -293,14 +295,20 @@ tr:hover { background: var(--gray-50); }
     <div class="page" id="page-clientes">
       <div class="page-header">
         <h1>Cadastro de Clientes</h1>
-        <button class="btn btn-accent" onclick="openClienteModal()">+ Novo Cliente</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" id="btnComissaoLote" onclick="openComissaoLoteModal()" style="display:none;">Atualizar Comissão (selecionados)</button>
+          <button class="btn btn-accent" onclick="openClienteModal()">+ Novo Cliente</button>
+        </div>
       </div>
       <div class="table-wrap">
         <div class="table-toolbar">
           <input type="text" placeholder="Buscar cliente..." id="searchClientes" oninput="filterClientes()">
         </div>
         <div class="table-responsive">
-          <table><thead><tr><th>Nome</th><th>Escritório</th><th>Sala</th><th>Filial</th><th>IE</th><th>Conta Gráfica</th><th>Certificado</th><th>Ações</th></tr></thead>
+          <table><thead><tr>
+            <th style="width:36px;"><input type="checkbox" id="checkAllClientes" onchange="toggleAllClientes(this.checked)"></th>
+            <th>Nome</th><th>Escritório</th><th>Sala</th><th>Filial</th><th>IE</th><th>Conta Gráfica</th><th>Certificado</th><th>% Comissão</th><th>Dia Fechamento</th><th>Ações</th>
+          </tr></thead>
           <tbody id="tblClientes"></tbody></table>
         </div>
       </div>
@@ -417,9 +425,9 @@ tr:hover { background: var(--gray-50); }
         <div class="table-toolbar" style="flex-wrap:wrap;">
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <div class="form-group" style="margin:0;min-width:200px;">
-              <label style="font-size:12px;">Parceiro</label>
+              <label style="font-size:12px;">Escritório</label>
               <select id="comParceiro" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
-                <option value="">Todos os parceiros</option>
+                <option value="">Todos os escritórios</option>
               </select>
             </div>
             <div class="form-group" style="margin:0;min-width:120px;">
@@ -454,7 +462,7 @@ tr:hover { background: var(--gray-50); }
       <div class="table-wrap">
         <div class="table-responsive">
           <table>
-            <thead><tr><th>Mês/Ano</th><th>Parceiro</th><th>Total Comissão</th><th></th></tr></thead>
+            <thead><tr><th>Mês/Ano</th><th>Escritório</th><th>Total Comissão</th><th></th></tr></thead>
             <tbody id="tblComissoes"></tbody>
           </table>
         </div>
@@ -634,6 +642,31 @@ tr:hover { background: var(--gray-50); }
   </div>
 </div>
 
+<!-- MODAL ATUALIZAR COMISSAO EM LOTE -->
+<div class="modal-overlay" id="modalComissaoLote">
+  <div class="modal" style="width:450px;">
+    <div class="modal-header">
+      <h2>Atualizar Comissão em Lote</h2>
+      <button class="modal-close" onclick="closeModal('modalComissaoLote')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px;color:var(--gray-600);">Atualizando <strong id="loteQtd">0</strong> cliente(s) selecionado(s). Deixe em branco para não alterar.</p>
+      <div class="form-group">
+        <label>% Comissão</label>
+        <input type="number" id="lotePercComissao" step="0.01" min="0" max="100" placeholder="Ex: 2.5">
+      </div>
+      <div class="form-group">
+        <label>Dia Fechamento Comissões</label>
+        <input type="number" id="loteDiaFechamento" min="1" max="28" placeholder="Ex: 22">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalComissaoLote')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveComissaoLote()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- POPUP ALERTA SALDO BAIXO -->
 <div class="alert-overlay" id="alertOverlay">
   <div class="alert-popup">
@@ -795,6 +828,7 @@ async function loadClientes() {
 
 function renderClientes(list) {
   document.getElementById('tblClientes').innerHTML = list.map(c => `<tr>
+    <td><input type="checkbox" class="chk-cliente" value="${c.id}" onchange="updateBtnComissaoLote()"></td>
     <td><strong>${c.nome}</strong></td>
     <td>${c.escritorio || '-'}</td>
     <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : ''}">${c.locacao_sala}</span>${c.parceiro_sala ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_sala + '</div>' : ''}</td>
@@ -802,16 +836,65 @@ function renderClientes(list) {
     <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : ''}">${c.reativacao_ie}</span>${c.parceiro_ie ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_ie + '</div>' : ''}</td>
     <td><span class="badge ${c.conta_grafica === 'Sim' ? 'green' : ''}">${c.conta_grafica}</span></td>
     <td><span class="badge ${c.cliente_certificado === 'Sim' ? 'blue' : ''}">${c.cliente_certificado}</span></td>
+    <td style="text-align:center;">${c.percentual_comissao ? c.percentual_comissao + '%' : '-'}</td>
+    <td style="text-align:center;">${c.dia_fechamento || '-'}</td>
     <td style="white-space:nowrap;">
       <button class="btn btn-sm btn-outline" onclick="editCliente(${c.id})">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="deleteCliente(${c.id},'${c.nome.replace(/'/g,"\\'")}')">Excluir</button>
     </td>
   </tr>`).join('');
+  document.getElementById('checkAllClientes').checked = false;
+  updateBtnComissaoLote();
 }
 
 function filterClientes() {
   const q = document.getElementById('searchClientes').value.toLowerCase();
   renderClientes(clientesCache.filter(c => c.nome.toLowerCase().includes(q)));
+}
+
+function toggleAllClientes(checked) {
+  document.querySelectorAll('.chk-cliente').forEach(cb => cb.checked = checked);
+  updateBtnComissaoLote();
+}
+
+function updateBtnComissaoLote() {
+  const selected = document.querySelectorAll('.chk-cliente:checked').length;
+  const btn = document.getElementById('btnComissaoLote');
+  if (selected > 0) {
+    btn.style.display = 'inline-flex';
+    btn.textContent = `Atualizar Comissão (${selected} selecionado${selected > 1 ? 's' : ''})`;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function getSelectedClienteIds() {
+  return Array.from(document.querySelectorAll('.chk-cliente:checked')).map(cb => parseInt(cb.value));
+}
+
+function openComissaoLoteModal() {
+  const ids = getSelectedClienteIds();
+  if (ids.length === 0) return toast('Selecione ao menos um cliente', 'error');
+  document.getElementById('loteQtd').textContent = ids.length;
+  document.getElementById('lotePercComissao').value = '';
+  document.getElementById('loteDiaFechamento').value = '';
+  document.getElementById('modalComissaoLote').classList.add('show');
+}
+
+async function saveComissaoLote() {
+  const ids = getSelectedClienteIds();
+  const perc = document.getElementById('lotePercComissao').value;
+  const dia = document.getElementById('loteDiaFechamento').value;
+  if (!perc && !dia) return toast('Preencha ao menos um campo', 'error');
+  try {
+    await api('/api/clientes/comissao-lote', {
+      method: 'PUT',
+      body: JSON.stringify({ ids, percentual_comissao: perc || null, dia_fechamento: dia || null })
+    });
+    closeModal('modalComissaoLote');
+    toast(`Comissão atualizada para ${ids.length} cliente(s)!`);
+    loadClientes();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function populateClienteDropdowns() {
@@ -1167,15 +1250,13 @@ async function loadComissoesPage() {
   if (clientesCache.length === 0) {
     clientesCache = await api('/api/clientes');
   }
-  // Populate parceiro dropdown from clients
-  const parceiros = new Set();
+  // Populate parceiro dropdown from escritório dos clientes
+  const escritorios = new Set();
   clientesCache.forEach(c => {
-    if (c.parceiro_sala) parceiros.add(c.parceiro_sala);
-    if (c.parceiro_filial) parceiros.add(c.parceiro_filial);
-    if (c.parceiro_ie) parceiros.add(c.parceiro_ie);
+    if (c.escritorio) escritorios.add(c.escritorio);
   });
-  const opts = Array.from(parceiros).sort().map(p => `<option value="${p}">${p}</option>`).join('');
-  document.getElementById('comParceiro').innerHTML = '<option value="">Todos os parceiros</option>' + opts;
+  const opts = Array.from(escritorios).sort().map(p => `<option value="${p}">${p}</option>`).join('');
+  document.getElementById('comParceiro').innerHTML = '<option value="">Todos os escritórios</option>' + opts;
 
   // Populate year dropdown (current year and 3 years back)
   const currentYear = new Date().getFullYear();

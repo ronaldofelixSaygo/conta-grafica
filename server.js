@@ -263,6 +263,32 @@ app.delete('/api/clientes/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ============ COMISSAO EM LOTE ============
+app.put('/api/clientes/comissao-lote', requireAuth, (req, res) => {
+  const { ids, percentual_comissao, dia_fechamento } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum cliente selecionado' });
+
+  const updates = [];
+  const params = [];
+  if (percentual_comissao !== null && percentual_comissao !== '') {
+    updates.push('percentual_comissao = ?');
+    params.push(parseFloat(percentual_comissao));
+  }
+  if (dia_fechamento !== null && dia_fechamento !== '') {
+    updates.push('dia_fechamento = ?');
+    params.push(parseInt(dia_fechamento));
+  }
+  if (updates.length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+  const placeholders = ids.map(() => '?').join(',');
+  const sql = `UPDATE clientes SET ${updates.join(', ')} WHERE id IN (${placeholders})`;
+  db.run(sql, [...params, ...ids]);
+  saveDb();
+  logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', null, `Comissão atualizada em lote: ${ids.length} clientes`);
+  res.json({ ok: true });
+});
+
 // ============ MOVIMENTACOES ROUTES ============
 app.get('/api/movimentacoes', requireAuth, (req, res) => {
   const { cliente_id, page = 1, limit = 50, search } = req.query;
@@ -783,7 +809,7 @@ app.get('/api/comissoes', requireAuth, (req, res) => {
   const { parceiro, mes, ano } = req.query;
 
   // Get all clients with their commission settings
-  const clientesResult = db.exec("SELECT id, nome, percentual_comissao, dia_fechamento, parceiro_sala, parceiro_filial, parceiro_ie FROM clientes WHERE percentual_comissao > 0");
+  const clientesResult = db.exec("SELECT id, nome, escritorio, percentual_comissao, dia_fechamento FROM clientes WHERE percentual_comissao > 0");
   if (clientesResult.length === 0) return res.json([]);
 
   const clientes = clientesResult[0].values.map(row => {
@@ -815,12 +841,8 @@ app.get('/api/comissoes', requireAuth, (req, res) => {
     const pct = cliente.percentual_comissao || 0;
     if (pct <= 0) return;
 
-    // Get parceiros for this client
-    const parceiros = new Set();
-    if (cliente.parceiro_sala) parceiros.add(cliente.parceiro_sala);
-    if (cliente.parceiro_filial) parceiros.add(cliente.parceiro_filial);
-    if (cliente.parceiro_ie) parceiros.add(cliente.parceiro_ie);
-    if (parceiros.size === 0) parceiros.add('Sem Parceiro');
+    // Parceiro = campo escritório do cliente
+    const parceiroNome = cliente.escritorio || 'Sem Escritório';
 
     // Filter movements for this client
     const clientMovs = movimentos.filter(m => m.cliente_id === cliente.id);
@@ -850,10 +872,9 @@ app.get('/api/comissoes', requireAuth, (req, res) => {
       if (totalCreditos > 0) {
         const valorComissao = totalCreditos * (pct / 100);
         const mesAno = `${String(month + 1).padStart(2, '0')}/${year}`;
+        const p = parceiroNome;
 
-        parceiros.forEach(p => {
-          if (parceiro && p !== parceiro) return;
-
+        if (!parceiro || p === parceiro) {
           const key = `${p}|${mesAno}`;
           if (!comissoesPorParceiro[key]) {
             comissoesPorParceiro[key] = {
@@ -873,7 +894,7 @@ app.get('/api/comissoes', requireAuth, (req, res) => {
             periodo_inicio: inicioStr,
             periodo_fim: fimStr
           });
-        });
+        }
       }
 
       current.setMonth(current.getMonth() + 1);
