@@ -780,7 +780,7 @@ app.post('/api/import', requireAuth, requireAdmin, upload.single('file'), (req, 
 
 // ============ COMISSOES ============
 app.get('/api/comissoes', requireAuth, (req, res) => {
-  const { parceiro } = req.query;
+  const { parceiro, mes, ano } = req.query;
 
   // Get all clients with their commission settings
   const clientesResult = db.exec("SELECT id, nome, percentual_comissao, dia_fechamento, parceiro_sala, parceiro_filial, parceiro_ie FROM clientes WHERE percentual_comissao > 0");
@@ -881,11 +881,22 @@ app.get('/api/comissoes', requireAuth, (req, res) => {
   });
 
   // Convert to array and sort by date desc
-  const result = Object.values(comissoesPorParceiro).sort((a, b) => {
+  let result = Object.values(comissoesPorParceiro).sort((a, b) => {
     const [mA, yA] = a.mes_ano.split('/');
     const [mB, yB] = b.mes_ano.split('/');
     return (yB + mB).localeCompare(yA + mA) || a.parceiro.localeCompare(b.parceiro);
   });
+
+  // Filter by mes/ano if provided
+  if (mes || ano) {
+    result = result.filter(r => {
+      const [m, y] = r.mes_ano.split('/');
+      if (mes && ano) return m === mes && y === ano;
+      if (mes) return m === mes;
+      if (ano) return y === ano;
+      return true;
+    });
+  }
 
   res.json(result);
 });

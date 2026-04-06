@@ -418,13 +418,39 @@ tr:hover { background: var(--gray-50); }
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <div class="form-group" style="margin:0;min-width:200px;">
               <label style="font-size:12px;">Parceiro</label>
-              <select id="comParceiro" onchange="loadComissoes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+              <select id="comParceiro" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
                 <option value="">Todos os parceiros</option>
               </select>
             </div>
+            <div class="form-group" style="margin:0;min-width:120px;">
+              <label style="font-size:12px;">Mês</label>
+              <select id="comMes" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+                <option value="">Todos</option>
+                <option value="01">Janeiro</option>
+                <option value="02">Fevereiro</option>
+                <option value="03">Março</option>
+                <option value="04">Abril</option>
+                <option value="05">Maio</option>
+                <option value="06">Junho</option>
+                <option value="07">Julho</option>
+                <option value="08">Agosto</option>
+                <option value="09">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;min-width:100px;">
+              <label style="font-size:12px;">Ano</label>
+              <select id="comAno" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <button class="btn btn-accent" onclick="gerarComissoes()" style="margin-top:16px;">Gerar Comissões</button>
           </div>
         </div>
       </div>
+      <div id="comResumo" style="display:none;margin-bottom:16px;" class="cards"></div>
       <div class="table-wrap">
         <div class="table-responsive">
           <table>
@@ -1150,15 +1176,53 @@ async function loadComissoesPage() {
   });
   const opts = Array.from(parceiros).sort().map(p => `<option value="${p}">${p}</option>`).join('');
   document.getElementById('comParceiro').innerHTML = '<option value="">Todos os parceiros</option>' + opts;
-  loadComissoes();
+
+  // Populate year dropdown (current year and 3 years back)
+  const currentYear = new Date().getFullYear();
+  let yearOpts = '<option value="">Todos</option>';
+  for (let y = currentYear; y >= currentYear - 3; y--) {
+    yearOpts += `<option value="${y}">${y}</option>`;
+  }
+  document.getElementById('comAno').innerHTML = yearOpts;
+
+  // Set current month/year as default
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  document.getElementById('comMes').value = currentMonth;
+  document.getElementById('comAno').value = currentYear;
+
+  // Clear previous results
+  document.getElementById('tblComissoes').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-500);">Selecione os filtros e clique em "Gerar Comissões".</td></tr>';
+  document.getElementById('comResumo').style.display = 'none';
 }
 
-async function loadComissoes() {
+async function gerarComissoes() {
   const parceiro = document.getElementById('comParceiro').value;
+  const mes = document.getElementById('comMes').value;
+  const ano = document.getElementById('comAno').value;
+
   const params = new URLSearchParams();
   if (parceiro) params.set('parceiro', parceiro);
+  if (mes) params.set('mes', mes);
+  if (ano) params.set('ano', ano);
+
   comissoesCache = await api(`/api/comissoes?${params.toString()}`);
 
+  // Show summary card
+  const totalGeral = comissoesCache.reduce((sum, c) => sum + c.total_comissao, 0);
+  const totalClientes = new Set(comissoesCache.flatMap(c => c.detalhes.map(d => d.cliente_id))).size;
+
+  if (comissoesCache.length > 0) {
+    document.getElementById('comResumo').style.display = 'grid';
+    document.getElementById('comResumo').innerHTML = `
+      <div class="card"><div class="label">Total Geral Comissões</div><div class="value green">${formatMoney(totalGeral)}</div></div>
+      <div class="card"><div class="label">Registros Encontrados</div><div class="value">${comissoesCache.length}</div></div>
+      <div class="card"><div class="label">Clientes com Comissão</div><div class="value">${totalClientes}</div></div>
+    `;
+  } else {
+    document.getElementById('comResumo').style.display = 'none';
+  }
+
+  // Render table
   document.getElementById('tblComissoes').innerHTML = comissoesCache.map((c, idx) => {
     return `<tr style="cursor:pointer;background:#f9fafb;" onclick="toggleComissaoDetalhe(${idx})">
       <td><strong>${c.mes_ano}</strong></td>
@@ -1196,7 +1260,9 @@ async function loadComissoes() {
   }).join('');
 
   if (comissoesCache.length === 0) {
-    document.getElementById('tblComissoes').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-500);">Nenhuma comissão encontrada. Configure o % de comissão nos cadastros de clientes.</td></tr>';
+    document.getElementById('tblComissoes').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-500);">Nenhuma comissão encontrada para o período selecionado. Verifique se os clientes possuem % de comissão configurado no cadastro.</td></tr>';
+  } else {
+    toast(`Comissões geradas: ${comissoesCache.length} registros, total ${formatMoney(totalGeral)}`);
   }
 }
 
