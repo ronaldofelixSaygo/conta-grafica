@@ -301,8 +301,15 @@ tr:hover { background: var(--gray-50); }
         </div>
       </div>
       <div class="table-wrap">
-        <div class="table-toolbar">
-          <input type="text" placeholder="Buscar cliente..." id="searchClientes" oninput="filterClientes()">
+        <div class="table-toolbar" style="flex-wrap:wrap;">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <input type="text" placeholder="Buscar cliente..." id="searchClientes" oninput="filterClientes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;width:250px;">
+            <select id="filterClienteEscritorio" onchange="filterClientes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+              <option value="">Todos os escritórios</option>
+              <option value="Pedro">Pedro</option>
+              <option value="Pitágoras">Pitágoras</option>
+            </select>
+          </div>
         </div>
         <div class="table-responsive">
           <table><thead><tr>
@@ -849,7 +856,11 @@ function renderClientes(list) {
 
 function filterClientes() {
   const q = document.getElementById('searchClientes').value.toLowerCase();
-  renderClientes(clientesCache.filter(c => c.nome.toLowerCase().includes(q)));
+  const esc = document.getElementById('filterClienteEscritorio').value;
+  let filtered = clientesCache;
+  if (q) filtered = filtered.filter(c => c.nome.toLowerCase().includes(q));
+  if (esc) filtered = filtered.filter(c => c.escritorio === esc);
+  renderClientes(filtered);
 }
 
 function toggleAllClientes(checked) {

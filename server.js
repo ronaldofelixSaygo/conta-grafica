@@ -244,26 +244,7 @@ app.post('/api/clientes', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.put('/api/clientes/:id', requireAuth, (req, res) => {
-  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
-  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
-    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
-  saveDb();
-  logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
-  res.json({ ok: true });
-});
-
-app.delete('/api/clientes/:id', requireAuth, (req, res) => {
-  const result = db.exec("SELECT nome FROM clientes WHERE id = ?", [req.params.id]);
-  const nome = result.length > 0 ? result[0].values[0][0] : 'N/A';
-  db.run("DELETE FROM movimentacoes WHERE cliente_id = ?", [req.params.id]);
-  db.run("DELETE FROM clientes WHERE id = ?", [req.params.id]);
-  saveDb();
-  logAction(req.session.user.id, req.session.user.name, 'DELETE', 'cliente', req.params.id, `Cliente excluído: ${nome}`);
-  res.json({ ok: true });
-});
-
-// ============ COMISSAO EM LOTE ============
+// ============ COMISSAO EM LOTE (must be before :id routes) ============
 app.put('/api/clientes/comissao-lote', requireAuth, (req, res) => {
   const { ids, percentual_comissao, dia_fechamento } = req.body;
   if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum cliente selecionado' });
@@ -286,6 +267,25 @@ app.put('/api/clientes/comissao-lote', requireAuth, (req, res) => {
   db.run(sql, [...params, ...ids]);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', null, `Comissão atualizada em lote: ${ids.length} clientes`);
+  res.json({ ok: true });
+});
+
+app.put('/api/clientes/:id', requireAuth, (req, res) => {
+  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
+  saveDb();
+  logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
+  res.json({ ok: true });
+});
+
+app.delete('/api/clientes/:id', requireAuth, (req, res) => {
+  const result = db.exec("SELECT nome FROM clientes WHERE id = ?", [req.params.id]);
+  const nome = result.length > 0 ? result[0].values[0][0] : 'N/A';
+  db.run("DELETE FROM movimentacoes WHERE cliente_id = ?", [req.params.id]);
+  db.run("DELETE FROM clientes WHERE id = ?", [req.params.id]);
+  saveDb();
+  logAction(req.session.user.id, req.session.user.name, 'DELETE', 'cliente', req.params.id, `Cliente excluído: ${nome}`);
   res.json({ ok: true });
 });
 
