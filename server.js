@@ -101,22 +101,44 @@ function initDatabase() {
   } catch (e) {
     // Column already exists
   }
-
-  // Create default admin user
-  const admin = db.exec("SELECT id FROM users WHERE email = 'admin@saygogroup.com.br'");
-  if (admin.length === 0) {
-    const hash = bcrypt.hashSync('admin123', 10);
-    db.run("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-      ['Administrador', 'admin@saygogroup.com.br', hash, 'admin']);
+  try {
+    db.run(`ALTER TABLE clientes ADD COLUMN percentual_comissao REAL DEFAULT 0`);
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.run(`ALTER TABLE clientes ADD COLUMN dia_fechamento INTEGER DEFAULT 1`);
+  } catch (e) {
+    // Column already exists
   }
 
-  // Create Ronaldo user
-  const ronaldo = db.exec("SELECT id FROM users WHERE email = 'ronaldo.felix@saygogroup.com.br'");
-  if (ronaldo.length === 0) {
-    const hash = bcrypt.hashSync('123456', 10);
-    db.run("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-      ['Ronaldo Felix', 'ronaldo.felix@saygogroup.com.br', hash, 'admin']);
+  // Default users that are always ensured on startup
+  const defaultUsers = [
+    { name: 'Administrador', email: 'admin@saygogroup.com.br', password: 'admin123', role: 'admin' },
+    { name: 'Ronaldo Felix', email: 'ronaldo.felix@saygogroup.com.br', password: '123456', role: 'admin' }
+  ];
+
+  // Additional users from environment variable INITIAL_USERS (JSON array)
+  // Format: [{"name":"Nome","email":"email@x.com","password":"senha","role":"admin"}]
+  if (process.env.INITIAL_USERS) {
+    try {
+      const extra = JSON.parse(process.env.INITIAL_USERS);
+      if (Array.isArray(extra)) defaultUsers.push(...extra);
+    } catch (e) {
+      console.error('Erro ao parsear INITIAL_USERS:', e.message);
+    }
   }
+
+  // Ensure all default/initial users exist
+  defaultUsers.forEach(u => {
+    const existing = db.exec("SELECT id FROM users WHERE email = ?", [u.email]);
+    if (existing.length === 0 || existing[0].values.length === 0) {
+      const hash = bcrypt.hashSync(u.password, 10);
+      db.run("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+        [u.name, u.email, hash, u.role || 'user']);
+      console.log(`Usuário criado automaticamente: ${u.name} (${u.email})`);
+    }
+  });
 
   saveDb();
 }
@@ -214,18 +236,18 @@ app.get('/api/clientes', requireAuth, (req, res) => {
 });
 
 app.post('/api/clientes', requireAuth, (req, res) => {
-  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes } = req.body;
-  db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [nome, escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '']);
+  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+  db.run(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [nome, escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '', parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1]);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'CREATE', 'cliente', null, `Cliente criado: ${nome}`);
   res.json({ ok: true });
 });
 
 app.put('/api/clientes/:id', requireAuth, (req, res) => {
-  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes } = req.body;
-  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, updated_at=CURRENT_TIMESTAMP
-    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, req.params.id]);
+  const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+  db.run(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
   saveDb();
   logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
   res.json({ ok: true });
@@ -754,6 +776,118 @@ app.post('/api/import', requireAuth, requireAdmin, upload.single('file'), (req, 
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ============ COMISSOES ============
+app.get('/api/comissoes', requireAuth, (req, res) => {
+  const { parceiro } = req.query;
+
+  // Get all clients with their commission settings
+  const clientesResult = db.exec("SELECT id, nome, percentual_comissao, dia_fechamento, parceiro_sala, parceiro_filial, parceiro_ie FROM clientes WHERE percentual_comissao > 0");
+  if (clientesResult.length === 0) return res.json([]);
+
+  const clientes = clientesResult[0].values.map(row => {
+    const obj = {};
+    clientesResult[0].columns.forEach((c, i) => obj[c] = row[i]);
+    return obj;
+  });
+
+  // Get all credit movements
+  const movsResult = db.exec("SELECT m.cliente_id, m.data_nf, m.valor_ajustado, m.tipo_movimento FROM movimentacoes m WHERE m.tipo_movimento = 'Créditos Reconhecidos e Cedidos' ORDER BY m.data_nf");
+  const movimentos = movsResult.length > 0 ? movsResult[0].values.map(row => {
+    const obj = {};
+    movsResult[0].columns.forEach((c, i) => obj[c] = row[i]);
+    return obj;
+  }) : [];
+
+  // Determine date range: find min/max dates from movements
+  if (movimentos.length === 0) return res.json([]);
+
+  const allDates = movimentos.map(m => m.data_nf).filter(Boolean).sort();
+  const minDate = new Date(allDates[0]);
+  const maxDate = new Date(allDates[allDates.length - 1]);
+
+  // Generate month/year periods from minDate to maxDate
+  const comissoesPorParceiro = {};
+
+  clientes.forEach(cliente => {
+    const dia = cliente.dia_fechamento || 1;
+    const pct = cliente.percentual_comissao || 0;
+    if (pct <= 0) return;
+
+    // Get parceiros for this client
+    const parceiros = new Set();
+    if (cliente.parceiro_sala) parceiros.add(cliente.parceiro_sala);
+    if (cliente.parceiro_filial) parceiros.add(cliente.parceiro_filial);
+    if (cliente.parceiro_ie) parceiros.add(cliente.parceiro_ie);
+    if (parceiros.size === 0) parceiros.add('Sem Parceiro');
+
+    // Filter movements for this client
+    const clientMovs = movimentos.filter(m => m.cliente_id === cliente.id);
+    if (clientMovs.length === 0) return;
+
+    // For each month, calculate commission based on closing day
+    let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const end = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 1);
+
+    while (current <= end) {
+      const year = current.getFullYear();
+      const month = current.getMonth(); // 0-based
+
+      // Period: from (dia+1) of previous month to (dia) of current month
+      // Example: dia=22, month=Mar -> 23/Feb to 22/Mar
+      const periodoInicio = new Date(year, month - 1, dia + 1);
+      const periodoFim = new Date(year, month, dia);
+
+      const inicioStr = periodoInicio.toISOString().split('T')[0];
+      const fimStr = periodoFim.toISOString().split('T')[0];
+
+      // Sum credits in the period
+      const totalCreditos = clientMovs
+        .filter(m => m.data_nf >= inicioStr && m.data_nf <= fimStr)
+        .reduce((sum, m) => sum + (m.valor_ajustado || 0), 0);
+
+      if (totalCreditos > 0) {
+        const valorComissao = totalCreditos * (pct / 100);
+        const mesAno = `${String(month + 1).padStart(2, '0')}/${year}`;
+
+        parceiros.forEach(p => {
+          if (parceiro && p !== parceiro) return;
+
+          const key = `${p}|${mesAno}`;
+          if (!comissoesPorParceiro[key]) {
+            comissoesPorParceiro[key] = {
+              parceiro: p,
+              mes_ano: mesAno,
+              total_comissao: 0,
+              detalhes: []
+            };
+          }
+          comissoesPorParceiro[key].total_comissao += valorComissao;
+          comissoesPorParceiro[key].detalhes.push({
+            cliente_id: cliente.id,
+            cliente_nome: cliente.nome,
+            total_creditos: totalCreditos,
+            percentual: pct,
+            valor_comissao: valorComissao,
+            periodo_inicio: inicioStr,
+            periodo_fim: fimStr
+          });
+        });
+      }
+
+      current.setMonth(current.getMonth() + 1);
+    }
+  });
+
+  // Convert to array and sort by date desc
+  const result = Object.values(comissoesPorParceiro).sort((a, b) => {
+    const [mA, yA] = a.mes_ano.split('/');
+    const [mB, yB] = b.mes_ano.split('/');
+    return (yB + mB).localeCompare(yA + mA) || a.parceiro.localeCompare(b.parceiro);
+  });
+
+  res.json(result);
 });
 
 // Start server

@@ -255,6 +255,10 @@ tr:hover { background: var(--gray-50); }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Relatórios
       </a>
+      <a href="#" data-page="comissoes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/><circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/></svg>
+        Comissões
+      </a>
       <a href="#" data-page="usuarios" id="navUsuarios">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Usuários
@@ -406,6 +410,31 @@ tr:hover { background: var(--gray-50); }
       </div>
     </div>
 
+    <!-- COMISSOES -->
+    <div class="page" id="page-comissoes">
+      <div class="page-header"><h1>Comissões</h1></div>
+      <div class="table-wrap" style="margin-bottom:16px;">
+        <div class="table-toolbar" style="flex-wrap:wrap;">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;min-width:200px;">
+              <label style="font-size:12px;">Parceiro</label>
+              <select id="comParceiro" onchange="loadComissoes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+                <option value="">Todos os parceiros</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table>
+            <thead><tr><th>Mês/Ano</th><th>Parceiro</th><th>Total Comissão</th><th></th></tr></thead>
+            <tbody id="tblComissoes"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- AUDITORIA -->
     <div class="page" id="page-auditoria">
       <div class="page-header"><h1>Log de Auditoria</h1></div>
@@ -476,6 +505,16 @@ tr:hover { background: var(--gray-50); }
         <div class="form-group">
           <label>Certificado</label>
           <select id="clienteCert"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>% Comissão</label>
+          <input type="number" id="clientePercComissao" step="0.01" min="0" max="100" placeholder="Ex: 2.5">
+        </div>
+        <div class="form-group">
+          <label>Dia Fechamento Comissões</label>
+          <input type="number" id="clienteDiaFechamento" min="1" max="28" placeholder="Ex: 22">
         </div>
       </div>
       <div class="form-group">
@@ -692,6 +731,7 @@ function navigateTo(page) {
   if (page === 'lancamentos') loadMovimentacoes();
   if (page === 'saldos') loadSaldos();
   if (page === 'relatorios') loadRelatorioPage();
+  if (page === 'comissoes') loadComissoesPage();
   if (page === 'usuarios') loadUsers();
   if (page === 'auditoria') loadAudit();
 }
@@ -767,6 +807,8 @@ function openClienteModal(data = null) {
   document.getElementById('clienteParcIE').value = data ? (data.parceiro_ie || '') : '';
   document.getElementById('clienteCG').value = data ? data.conta_grafica : 'Sim';
   document.getElementById('clienteCert').value = data ? data.cliente_certificado : 'Sim';
+  document.getElementById('clientePercComissao').value = data ? (data.percentual_comissao || '') : '';
+  document.getElementById('clienteDiaFechamento').value = data ? (data.dia_fechamento || '') : '';
   document.getElementById('clienteObs').value = data ? (data.observacoes || '') : '';
   document.getElementById('modalCliente').classList.add('show');
 }
@@ -786,6 +828,8 @@ async function saveCliente() {
     parceiro_ie: document.getElementById('clienteParcIE').value,
     conta_grafica: document.getElementById('clienteCG').value,
     cliente_certificado: document.getElementById('clienteCert').value,
+    percentual_comissao: document.getElementById('clientePercComissao').value || 0,
+    dia_fechamento: document.getElementById('clienteDiaFechamento').value || 1,
     observacoes: document.getElementById('clienteObs').value
   };
   if (!body.nome) return toast('Nome é obrigatório', 'error');
@@ -1088,6 +1132,84 @@ async function checkAlertasSaldo() {
       `<p style="margin-bottom:12px;color:var(--gray-600);font-size:14px;">Os seguintes clientes possuem saldo inferior à média de suas operações e precisam de atenção:</p>` + html;
     document.getElementById('alertOverlay').classList.add('show');
   } catch {}
+}
+
+// ============ COMISSOES ============
+let comissoesCache = [];
+
+async function loadComissoesPage() {
+  if (clientesCache.length === 0) {
+    clientesCache = await api('/api/clientes');
+  }
+  // Populate parceiro dropdown from clients
+  const parceiros = new Set();
+  clientesCache.forEach(c => {
+    if (c.parceiro_sala) parceiros.add(c.parceiro_sala);
+    if (c.parceiro_filial) parceiros.add(c.parceiro_filial);
+    if (c.parceiro_ie) parceiros.add(c.parceiro_ie);
+  });
+  const opts = Array.from(parceiros).sort().map(p => `<option value="${p}">${p}</option>`).join('');
+  document.getElementById('comParceiro').innerHTML = '<option value="">Todos os parceiros</option>' + opts;
+  loadComissoes();
+}
+
+async function loadComissoes() {
+  const parceiro = document.getElementById('comParceiro').value;
+  const params = new URLSearchParams();
+  if (parceiro) params.set('parceiro', parceiro);
+  comissoesCache = await api(`/api/comissoes?${params.toString()}`);
+
+  document.getElementById('tblComissoes').innerHTML = comissoesCache.map((c, idx) => {
+    return `<tr style="cursor:pointer;background:#f9fafb;" onclick="toggleComissaoDetalhe(${idx})">
+      <td><strong>${c.mes_ano}</strong></td>
+      <td>${c.parceiro}</td>
+      <td class="money positive" style="font-weight:bold;">${formatMoney(c.total_comissao)}</td>
+      <td style="text-align:center;"><span id="comArrow${idx}" style="transition:transform 0.2s;">&#9654;</span></td>
+    </tr>
+    <tr id="comDetalhe${idx}" style="display:none;">
+      <td colspan="4" style="padding:0;">
+        <table style="width:100%;margin:0;background:#fff;">
+          <thead><tr style="background:#e5e7eb;">
+            <th style="font-size:11px;padding:6px 8px;">Cliente</th>
+            <th style="font-size:11px;padding:6px 8px;">Total Créditos no Período</th>
+            <th style="font-size:11px;padding:6px 8px;">% Aplicado</th>
+            <th style="font-size:11px;padding:6px 8px;">Valor Estimado Comissão</th>
+            <th style="font-size:11px;padding:6px 8px;">Período</th>
+          </tr></thead>
+          <tbody>
+            ${c.detalhes.map(d => `<tr>
+              <td style="padding:6px 8px;font-size:12px;">${d.cliente_nome}</td>
+              <td style="padding:6px 8px;font-size:12px;" class="money positive">${formatMoney(d.total_creditos)}</td>
+              <td style="padding:6px 8px;font-size:12px;text-align:center;">${d.percentual}%</td>
+              <td style="padding:6px 8px;font-size:12px;" class="money positive">${formatMoney(d.valor_comissao)}</td>
+              <td style="padding:6px 8px;font-size:12px;">${formatDate(d.periodo_inicio)} a ${formatDate(d.periodo_fim)}</td>
+            </tr>`).join('')}
+            <tr style="background:#f3f4f6;font-weight:bold;">
+              <td style="padding:6px 8px;text-align:right;" colspan="3">TOTAL:</td>
+              <td style="padding:6px 8px;" class="money positive">${formatMoney(c.total_comissao)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>`;
+  }).join('');
+
+  if (comissoesCache.length === 0) {
+    document.getElementById('tblComissoes').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-500);">Nenhuma comissão encontrada. Configure o % de comissão nos cadastros de clientes.</td></tr>';
+  }
+}
+
+function toggleComissaoDetalhe(idx) {
+  const row = document.getElementById(`comDetalhe${idx}`);
+  const arrow = document.getElementById(`comArrow${idx}`);
+  if (row.style.display === 'none') {
+    row.style.display = '';
+    arrow.style.transform = 'rotate(90deg)';
+  } else {
+    row.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+  }
 }
 
 // ============ ONLINE USERS (polling) ============

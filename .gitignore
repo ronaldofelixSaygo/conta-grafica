@@ -1,3 +1,4 @@
 node_modules/
 uploads/
 cookies.txt
+database.sqlite
