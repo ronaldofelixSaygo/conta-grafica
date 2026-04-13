@@ -135,6 +135,9 @@ tr:hover { background: var(--gray-50); }
 
 /* Responsive table */
 .table-responsive { overflow-x: auto; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background: var(--gray-100); }
+tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px solid var(--gray-200); text-transform: none; }
 
 /* Toast */
 .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: var(--radius); color: white; font-size: 14px; z-index: 300; animation: slideIn 0.3s ease; }
@@ -326,21 +329,50 @@ tr:hover { background: var(--gray-50); }
       <div class="page-header">
         <h1>Lançamentos</h1>
         <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" onclick="openImportExtratoModal()">📄 Importar Extrato PDF</button>
           <button class="btn btn-accent" onclick="openMovModal()">+ Novo Lançamento</button>
         </div>
       </div>
       <div class="table-wrap">
         <div class="table-toolbar">
-          <input type="text" placeholder="Buscar por cliente ou processo..." id="searchMovs" onkeyup="if(event.key==='Enter')loadMovimentacoes()">
+          <input type="text" placeholder="Buscar por cliente ou processo..." id="searchMovs" onkeyup="if(event.key==='Enter'){movsPage=1;loadMovimentacoes();}">
           <div style="display:flex;gap:8px;align-items:center;">
-            <select id="filterCliente" onchange="loadMovimentacoes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
+            <select id="filterCliente" onchange="movsPage=1;loadMovimentacoes()" style="padding:8px;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:14px;">
               <option value="">Todos os clientes</option>
             </select>
+            <button class="btn btn-sm btn-outline" onclick="limparFiltrosMovs()">Limpar Filtros</button>
           </div>
         </div>
         <div class="table-responsive">
-          <table><thead><tr><th>Cliente</th><th>Tipo Movimento</th><th>Data NF</th><th>DUIMP/DI</th><th>Parceiro</th><th>Valor</th><th>Ações</th></tr></thead>
-          <tbody id="tblMovs"></tbody></table>
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" onclick="sortMovs('cliente_nome')">Cliente <span id="sort-cliente_nome"></span></th>
+                <th class="sortable" onclick="sortMovs('tipo_movimento')">Tipo Movimento <span id="sort-tipo_movimento"></span></th>
+                <th class="sortable" onclick="sortMovs('data_nf')">Data NF <span id="sort-data_nf"></span></th>
+                <th class="sortable" onclick="sortMovs('duimp_di_processo')">DUIMP/DI <span id="sort-duimp_di_processo"></span></th>
+                <th class="sortable" onclick="sortMovs('parceiro')">Parceiro <span id="sort-parceiro"></span></th>
+                <th class="sortable" onclick="sortMovs('valor_ajustado')">Valor <span id="sort-valor_ajustado"></span></th>
+                <th>Ações</th>
+              </tr>
+              <tr class="filter-row">
+                <th><input type="text" id="fmCliente" oninput="debouncedFilterMovs()" placeholder="Filtrar..." style="width:100%;padding:4px;font-size:12px;"></th>
+                <th><input type="text" id="fmTipo" oninput="debouncedFilterMovs()" placeholder="Filtrar..." style="width:100%;padding:4px;font-size:12px;"></th>
+                <th>
+                  <input type="date" id="fmDataIni" oninput="debouncedFilterMovs()" style="width:100%;padding:4px;font-size:11px;" title="De">
+                  <input type="date" id="fmDataFim" oninput="debouncedFilterMovs()" style="width:100%;padding:4px;font-size:11px;margin-top:2px;" title="Até">
+                </th>
+                <th><input type="text" id="fmDuimp" oninput="debouncedFilterMovs()" placeholder="Filtrar..." style="width:100%;padding:4px;font-size:12px;"></th>
+                <th><input type="text" id="fmParceiro" oninput="debouncedFilterMovs()" placeholder="Filtrar..." style="width:100%;padding:4px;font-size:12px;"></th>
+                <th>
+                  <input type="number" id="fmValorMin" oninput="debouncedFilterMovs()" placeholder="Mín" style="width:100%;padding:4px;font-size:11px;">
+                  <input type="number" id="fmValorMax" oninput="debouncedFilterMovs()" placeholder="Máx" style="width:100%;padding:4px;font-size:11px;margin-top:2px;">
+                </th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tblMovs"></tbody>
+          </table>
         </div>
         <div class="pagination" id="movsPagination"></div>
       </div>
@@ -498,9 +530,15 @@ tr:hover { background: var(--gray-50); }
     </div>
     <div class="modal-body">
       <input type="hidden" id="clienteId">
-      <div class="form-group">
-        <label>Nome do Cliente *</label>
-        <input type="text" id="clienteNome" required>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome do Cliente *</label>
+          <input type="text" id="clienteNome" required>
+        </div>
+        <div class="form-group">
+          <label>CNPJ</label>
+          <input type="text" id="clienteCnpj" placeholder="00.000.000/0000-00">
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -582,7 +620,7 @@ tr:hover { background: var(--gray-50); }
       <div class="form-row">
         <div class="form-group">
           <label>Cliente *</label>
-          <select id="movCliente" required></select>
+          <select id="movCliente" required onchange="atualizaMovParceiro()"></select>
         </div>
         <div class="form-group">
           <label>Tipo Movimento *</label>
@@ -605,8 +643,8 @@ tr:hover { background: var(--gray-50); }
       </div>
       <div class="form-row-3">
         <div class="form-group">
-          <label>Parceiro</label>
-          <select id="movParceiro"><option value="Pedro">Pedro</option><option value="Pitágoras">Pitágoras</option></select>
+          <label>Parceiro (Escritório do Cliente)</label>
+          <input type="text" id="movParceiro" readonly style="background:var(--gray-100);cursor:not-allowed;">
         </div>
         <div class="form-group">
           <label>Data Exoneração</label>
@@ -670,6 +708,41 @@ tr:hover { background: var(--gray-50); }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modalComissaoLote')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveComissaoLote()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAR EXTRATO PDF -->
+<div class="modal-overlay" id="modalImportExtrato">
+  <div class="modal" style="width:95%;max-width:1200px;">
+    <div class="modal-header">
+      <h2>Importar Extrato de Conta Gráfica (PDF)</h2>
+      <button class="modal-close" onclick="closeModal('modalImportExtrato')">&times;</button>
+    </div>
+    <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+      <div id="importStep1">
+        <p style="margin-bottom:12px;color:var(--gray-600);">Envie o PDF do extrato. O cliente será identificado automaticamente pelo CNPJ ou Razão Social do cabeçalho.</p>
+        <div class="form-group">
+          <label>Arquivo PDF</label>
+          <input type="file" id="extratoFile" accept="application/pdf">
+        </div>
+        <button class="btn btn-primary" onclick="uploadExtrato()">Analisar Extrato</button>
+        <div id="extratoLoading" style="margin-top:12px;display:none;color:var(--gray-600);">Processando PDF...</div>
+      </div>
+
+      <div id="importStep2" style="display:none;">
+        <div id="extratoHeader" style="background:#f3f4f6;padding:12px;border-radius:6px;margin-bottom:16px;"></div>
+        <div id="extratoResumo" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
+
+        <div id="secDivergent" style="margin-bottom:20px;"></div>
+        <div id="secMissingSys" style="margin-bottom:20px;"></div>
+        <div id="secMissingExt" style="margin-bottom:20px;"></div>
+        <div id="secMatched" style="margin-bottom:20px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalImportExtrato')">Fechar</button>
+      <button class="btn btn-primary" id="btnApplyExtrato" style="display:none;" onclick="applyExtrato()">Aplicar Alterações Selecionadas</button>
     </div>
   </div>
 </div>
@@ -918,6 +991,7 @@ function openClienteModal(data = null) {
   document.getElementById('modalClienteTitle').textContent = data ? 'Editar Cliente' : 'Novo Cliente';
   document.getElementById('clienteId').value = data ? data.id : '';
   document.getElementById('clienteNome').value = data ? data.nome : '';
+  document.getElementById('clienteCnpj').value = data ? (data.cnpj || '') : '';
   document.getElementById('clienteEscritorio').value = data ? data.escritorio : 'Pedro';
   document.getElementById('clienteSala').value = data ? data.locacao_sala : 'Sim';
   document.getElementById('clienteParcSala').value = data ? (data.parceiro_sala || '') : '';
@@ -939,6 +1013,7 @@ async function saveCliente() {
   const id = document.getElementById('clienteId').value;
   const body = {
     nome: document.getElementById('clienteNome').value,
+    cnpj: document.getElementById('clienteCnpj').value,
     escritorio: document.getElementById('clienteEscritorio').value,
     locacao_sala: document.getElementById('clienteSala').value,
     parceiro_sala: document.getElementById('clienteParcSala').value,
@@ -977,6 +1052,34 @@ async function deleteCliente(id, nome) {
 }
 
 // ============ MOVIMENTACOES ============
+let movsSortBy = 'data_nf';
+let movsSortDir = 'DESC';
+let _movsDebounce = null;
+function debouncedFilterMovs() {
+  clearTimeout(_movsDebounce);
+  _movsDebounce = setTimeout(() => { movsPage = 1; loadMovimentacoes(); }, 350);
+}
+function limparFiltrosMovs() {
+  ['fmCliente','fmTipo','fmDuimp','fmParceiro','fmDataIni','fmDataFim','fmValorMin','fmValorMax'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('searchMovs').value = '';
+  document.getElementById('filterCliente').value = '';
+  movsPage = 1;
+  loadMovimentacoes();
+}
+function sortMovs(col) {
+  if (movsSortBy === col) movsSortDir = movsSortDir === 'ASC' ? 'DESC' : 'ASC';
+  else { movsSortBy = col; movsSortDir = 'ASC'; }
+  movsPage = 1;
+  loadMovimentacoes();
+}
+function renderSortIndicators() {
+  ['cliente_nome','tipo_movimento','data_nf','duimp_di_processo','parceiro','valor_ajustado'].forEach(c => {
+    const el = document.getElementById('sort-' + c);
+    if (el) el.textContent = (movsSortBy === c) ? (movsSortDir === 'ASC' ? '▲' : '▼') : '';
+  });
+}
 async function loadMovimentacoes() {
   if (clientesCache.length === 0) {
     clientesCache = await api('/api/clientes');
@@ -984,7 +1087,18 @@ async function loadMovimentacoes() {
   }
   const search = document.getElementById('searchMovs').value;
   const clienteId = document.getElementById('filterCliente').value;
-  const data = await api(`/api/movimentacoes?page=${movsPage}&limit=50&search=${encodeURIComponent(search)}&cliente_id=${clienteId}`);
+  const params = new URLSearchParams({
+    page: movsPage, limit: 50, search, cliente_id: clienteId || '',
+    sort_by: movsSortBy, sort_dir: movsSortDir
+  });
+  const fmap = { f_cliente: 'fmCliente', f_tipo: 'fmTipo', f_duimp: 'fmDuimp', f_parceiro: 'fmParceiro',
+                 f_data_ini: 'fmDataIni', f_data_fim: 'fmDataFim', f_valor_min: 'fmValorMin', f_valor_max: 'fmValorMax' };
+  Object.entries(fmap).forEach(([k, id]) => {
+    const v = document.getElementById(id) ? document.getElementById(id).value : '';
+    if (v) params.set(k, v);
+  });
+  const data = await api(`/api/movimentacoes?${params.toString()}`);
+  renderSortIndicators();
 
   document.getElementById('tblMovs').innerHTML = data.items.map(m => {
     const isCredit = m.tipo_movimento && m.tipo_movimento.includes('Crédito');
@@ -1014,6 +1128,11 @@ async function loadMovimentacoes() {
 }
 
 let movsCache = [];
+function atualizaMovParceiro() {
+  const clienteId = document.getElementById('movCliente').value;
+  const cliente = clientesCache.find(c => String(c.id) === String(clienteId));
+  document.getElementById('movParceiro').value = cliente ? (cliente.escritorio || '') : '';
+}
 function openMovModal(data = null) {
   document.getElementById('modalMovTitle').textContent = data ? 'Editar Lançamento' : 'Novo Lançamento';
   document.getElementById('movId').value = data ? data.id : '';
@@ -1021,7 +1140,7 @@ function openMovModal(data = null) {
   document.getElementById('movTipo').value = data ? data.tipo_movimento : 'Créditos Reconhecidos e Cedidos';
   document.getElementById('movDataNF').value = data ? data.data_nf : '';
   document.getElementById('movProcesso').value = data ? (data.duimp_di_processo || '') : '';
-  document.getElementById('movParceiro').value = data ? data.parceiro : 'Pedro';
+  atualizaMovParceiro();
   document.getElementById('movDataExo').value = data ? (data.data_exoneracao || '') : '';
   document.getElementById('movPerc').value = data ? (data.percentual || '') : '';
   document.getElementById('movValor').value = data ? Math.abs(data.valor) : '';
@@ -1036,7 +1155,6 @@ async function saveMov() {
     tipo_movimento: document.getElementById('movTipo').value,
     data_nf: document.getElementById('movDataNF').value,
     duimp_di_processo: document.getElementById('movProcesso').value,
-    parceiro: document.getElementById('movParceiro').value,
     data_exoneracao: document.getElementById('movDataExo').value || null,
     percentual: document.getElementById('movPerc').value || null,
     valor: valor
@@ -1053,8 +1171,16 @@ async function saveMov() {
 }
 
 async function editMov(id) {
-  const data = await api(`/api/movimentacoes?page=1&limit=5000`);
-  const m = data.items.find(x => x.id === id);
+  // Search in current page first; fallback to broad fetch
+  let m = null;
+  try {
+    const current = await api(`/api/movimentacoes?page=${movsPage}&limit=50`);
+    m = current.items.find(x => x.id === id);
+  } catch (e) {}
+  if (!m) {
+    const data = await api(`/api/movimentacoes?page=1&limit=10000`);
+    m = data.items.find(x => x.id === id);
+  }
   if (m) openMovModal(m);
 }
 
@@ -1063,6 +1189,167 @@ async function deleteMov(id) {
   try {
     await api(`/api/movimentacoes/${id}`, { method: 'DELETE' });
     toast('Lançamento excluído!');
+    loadMovimentacoes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ============ IMPORT EXTRATO PDF ============
+let extratoResult = null;
+function openImportExtratoModal() {
+  document.getElementById('extratoFile').value = '';
+  document.getElementById('importStep1').style.display = '';
+  document.getElementById('importStep2').style.display = 'none';
+  document.getElementById('btnApplyExtrato').style.display = 'none';
+  document.getElementById('extratoLoading').style.display = 'none';
+  extratoResult = null;
+  document.getElementById('modalImportExtrato').classList.add('show');
+}
+
+async function uploadExtrato() {
+  const file = document.getElementById('extratoFile').files[0];
+  if (!file) return toast('Selecione um arquivo PDF', 'error');
+  document.getElementById('extratoLoading').style.display = '';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/api/import-extrato', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) {
+      document.getElementById('extratoLoading').style.display = 'none';
+      let msg = data.error || 'Erro';
+      if (data.cnpj || data.razao_social) {
+        msg += `\nCNPJ PDF: ${data.cnpj || '-'}\nRazão Social PDF: ${data.razao_social || '-'}`;
+        msg += '\n\nCadastre o cliente com esse CNPJ antes de importar.';
+      }
+      alert(msg);
+      return;
+    }
+    extratoResult = data;
+    renderExtratoResult(data);
+  } catch (e) {
+    document.getElementById('extratoLoading').style.display = 'none';
+    toast(e.message, 'error');
+  }
+}
+
+function renderExtratoResult(data) {
+  document.getElementById('importStep1').style.display = 'none';
+  document.getElementById('importStep2').style.display = '';
+  document.getElementById('btnApplyExtrato').style.display = '';
+
+  document.getElementById('extratoHeader').innerHTML = `
+    <strong>Cliente identificado:</strong> ${data.cliente.nome} (ID ${data.cliente.id})<br>
+    <strong>CNPJ extrato:</strong> ${data.extrato_header.cnpj || '-'} | <strong>Razão Social extrato:</strong> ${data.extrato_header.razao_social || '-'}<br>
+    <strong>Escritório:</strong> ${data.cliente.escritorio || '-'}
+  `;
+
+  const card = (lbl, val, color) => `<div style="flex:1;min-width:120px;padding:10px;border-radius:6px;background:${color};color:white;text-align:center;"><div style="font-size:11px;text-transform:uppercase;">${lbl}</div><div style="font-size:20px;font-weight:bold;">${val}</div></div>`;
+  document.getElementById('extratoResumo').innerHTML =
+    card('Total Extrato', data.resumo.total_extrato, '#3b82f6') +
+    card('Total Sistema', data.resumo.total_sistema, '#6b7280') +
+    card('Matched', data.resumo.matched, '#10b981') +
+    card('Divergentes', data.resumo.divergent, '#f59e0b') +
+    card('Faltando Sistema', data.resumo.missing_in_system, '#ef4444') +
+    card('Faltando Extrato', data.resumo.missing_in_extract, '#8b5cf6');
+
+  // Divergent section
+  const fmtD = d => formatDate(d);
+  const fmtM = v => formatMoney(v);
+  const divHtml = data.divergent.length === 0 ? '<p style="color:var(--gray-600);">Nenhum lançamento divergente.</p>' :
+    `<table style="width:100%;font-size:12px;border-collapse:collapse;">
+      <thead><tr style="background:#fef3c7;">
+        <th style="padding:6px;text-align:left;">Corrigir</th><th style="padding:6px;">Tipo</th><th style="padding:6px;">Data</th><th style="padding:6px;">DUIMP/Proc</th>
+        <th style="padding:6px;text-align:right;">Valor Sistema</th><th style="padding:6px;text-align:right;">Valor Extrato</th>
+      </tr></thead><tbody>
+      ${data.divergent.map((d, i) => `<tr>
+        <td style="padding:6px;"><input type="checkbox" class="chk-corr" data-i="${i}" checked></td>
+        <td style="padding:6px;">${d.extrato.tipo_movimento}</td>
+        <td style="padding:6px;">${fmtD(d.extrato.data_nf)}</td>
+        <td style="padding:6px;">${d.extrato.duimp_di_processo || '-'}</td>
+        <td style="padding:6px;text-align:right;color:#ef4444;">${fmtM(d.diferencas.valor_sistema)}</td>
+        <td style="padding:6px;text-align:right;color:#10b981;">${fmtM(d.diferencas.valor_extrato)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  document.getElementById('secDivergent').innerHTML = `<h3 style="color:#f59e0b;">⚠ Divergentes (${data.divergent.length}) — valor será atualizado para o do extrato</h3>${divHtml}`;
+
+  // Missing in system (present in extract, absent in system) — can be included
+  const missSysHtml = data.missing_in_system.length === 0 ? '<p style="color:var(--gray-600);">Nenhum.</p>' :
+    `<div style="margin-bottom:8px;"><button class="btn btn-sm btn-outline" onclick="toggleAllChecks('chk-inc', true)">Selecionar todos</button>
+      <button class="btn btn-sm btn-outline" onclick="toggleAllChecks('chk-inc', false)">Desmarcar</button></div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+      <thead><tr style="background:#fee2e2;">
+        <th style="padding:6px;text-align:left;">Incluir</th><th style="padding:6px;">Tipo</th><th style="padding:6px;">Data</th><th style="padding:6px;">DUIMP/Proc</th>
+        <th style="padding:6px;text-align:right;">Valor</th>
+      </tr></thead><tbody>
+      ${data.missing_in_system.map((m, i) => `<tr>
+        <td style="padding:6px;"><input type="checkbox" class="chk-inc" data-i="${i}" checked></td>
+        <td style="padding:6px;">${m.tipo_movimento}</td>
+        <td style="padding:6px;">${fmtD(m.data_nf)}</td>
+        <td style="padding:6px;">${m.duimp_di_processo || '-'}</td>
+        <td style="padding:6px;text-align:right;">${fmtM(m.valor_ajustado)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  document.getElementById('secMissingSys').innerHTML = `<h3 style="color:#ef4444;">❌ Faltando no Sistema (${data.missing_in_system.length}) — presente no extrato, não no sistema</h3>${missSysHtml}`;
+
+  // Missing in extract — can be deleted
+  const missExtHtml = data.missing_in_extract.length === 0 ? '<p style="color:var(--gray-600);">Nenhum.</p>' :
+    `<div style="margin-bottom:8px;"><button class="btn btn-sm btn-outline" onclick="toggleAllChecks('chk-del', true)">Selecionar todos</button>
+      <button class="btn btn-sm btn-outline" onclick="toggleAllChecks('chk-del', false)">Desmarcar</button></div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+      <thead><tr style="background:#ede9fe;">
+        <th style="padding:6px;text-align:left;">Excluir</th><th style="padding:6px;">Tipo</th><th style="padding:6px;">Data</th><th style="padding:6px;">DUIMP/Proc</th>
+        <th style="padding:6px;text-align:right;">Valor</th>
+      </tr></thead><tbody>
+      ${data.missing_in_extract.map((m, i) => `<tr>
+        <td style="padding:6px;"><input type="checkbox" class="chk-del" data-i="${i}" data-id="${m.id}"></td>
+        <td style="padding:6px;">${m.tipo_movimento}</td>
+        <td style="padding:6px;">${fmtD(m.data_nf)}</td>
+        <td style="padding:6px;">${m.duimp_di_processo || '-'}</td>
+        <td style="padding:6px;text-align:right;">${fmtM(m.valor_ajustado)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  document.getElementById('secMissingExt').innerHTML = `<h3 style="color:#8b5cf6;">➖ Faltando no Extrato (${data.missing_in_extract.length}) — presente no sistema, não no extrato (selecione para excluir)</h3>${missExtHtml}`;
+
+  document.getElementById('secMatched').innerHTML = `<h3 style="color:#10b981;">✓ Conferidos (${data.resumo.matched})</h3><p style="color:var(--gray-600);">${data.resumo.matched} lançamentos conferem com o sistema — nenhuma ação necessária.</p>`;
+}
+
+function toggleAllChecks(cls, on) {
+  document.querySelectorAll('#modalImportExtrato .' + cls).forEach(c => c.checked = on);
+}
+
+async function applyExtrato() {
+  if (!extratoResult) return;
+  const corrections = [];
+  document.querySelectorAll('#modalImportExtrato .chk-corr:checked').forEach(c => {
+    const i = parseInt(c.dataset.i);
+    const d = extratoResult.divergent[i];
+    corrections.push({
+      id: d.sistema.id,
+      tipo_movimento: d.extrato.tipo_movimento,
+      valor: Math.abs(d.extrato.valor)
+    });
+  });
+  const includes = [];
+  document.querySelectorAll('#modalImportExtrato .chk-inc:checked').forEach(c => {
+    const i = parseInt(c.dataset.i);
+    includes.push(extratoResult.missing_in_system[i]);
+  });
+  const deletes = [];
+  document.querySelectorAll('#modalImportExtrato .chk-del:checked').forEach(c => {
+    deletes.push(parseInt(c.dataset.id));
+  });
+
+  if (corrections.length === 0 && includes.length === 0 && deletes.length === 0) {
+    return toast('Nenhuma alteração selecionada', 'error');
+  }
+  if (!confirm(`Confirmar: ${includes.length} inclusões, ${corrections.length} correções, ${deletes.length} exclusões?`)) return;
+  try {
+    const r = await api('/api/import-extrato/apply', {
+      method: 'POST',
+      body: JSON.stringify({ cliente_id: extratoResult.cliente.id, corrections, includes, deletes })
+    });
+    toast(`Aplicado: ${r.incluidos} incluídos, ${r.corrigidos} corrigidos, ${r.excluidos} excluídos`);
+    closeModal('modalImportExtrato');
     loadMovimentacoes();
   } catch (e) { toast(e.message, 'error'); }
 }

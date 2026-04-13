@@ -7,6 +7,31 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const XLSX = require('xlsx');
+// pdfjs-dist loaded lazily in route to avoid canvas polyfill warnings on startup
+async function extractPdfText(buffer) {
+  const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+  const data = new Uint8Array(buffer);
+  const doc = await pdfjs.getDocument({ data, useSystemFonts: true, disableFontFace: true }).promise;
+  let text = '';
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const tc = await page.getTextContent();
+    let lastY = null;
+    let lineParts = [];
+    for (const it of tc.items) {
+      const y = it.transform[5];
+      if (lastY !== null && Math.abs(y - lastY) > 2) {
+        text += lineParts.join(' ') + '\n';
+        lineParts = [];
+      }
+      lineParts.push(it.str);
+      lastY = y;
+    }
+    if (lineParts.length) text += lineParts.join(' ') + '\n';
+    text += '\n';
+  }
+  return text;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -101,6 +126,7 @@ async function initDatabase() {
       `CREATE TABLE IF NOT EXISTS clientes (
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
+        cnpj TEXT,
         escritorio TEXT,
         locacao_sala TEXT DEFAULT 'Não',
         abertura_filial TEXT DEFAULT 'Não',
@@ -159,6 +185,7 @@ async function initDatabase() {
     `;
 
     const columnsToAdd = [
+      { name: 'cnpj', type: 'TEXT' },
       { name: 'parceiro_sala', type: 'TEXT' },
       { name: 'parceiro_filial', type: 'TEXT' },
       { name: 'parceiro_ie', type: 'TEXT' },
@@ -191,6 +218,7 @@ async function initDatabase() {
     db.run(`CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
+      cnpj TEXT,
       escritorio TEXT,
       locacao_sala TEXT DEFAULT 'Não',
       abertura_filial TEXT DEFAULT 'Não',
@@ -257,6 +285,11 @@ async function initDatabase() {
     }
     try {
       db.run(`ALTER TABLE clientes ADD COLUMN dia_fechamento INTEGER DEFAULT 1`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      db.run(`ALTER TABLE clientes ADD COLUMN cnpj TEXT`);
     } catch (e) {
       // Column already exists
     }
@@ -474,9 +507,9 @@ app.get('/api/clientes', requireAuth, async (req, res) => {
 
 app.post('/api/clientes', requireAuth, async (req, res) => {
   try {
-    const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
-    await dbRun(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [nome, escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '', parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1]);
+    const { nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+    await dbRun(`INSERT INTO clientes (nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [nome, cnpj || '', escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '', parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1]);
     saveDb();
     await logAction(req.session.user.id, req.session.user.name, 'CREATE', 'cliente', null, `Cliente criado: ${nome}`);
     res.json({ ok: true });
@@ -517,9 +550,9 @@ app.put('/api/clientes/comissao-lote', requireAuth, async (req, res) => {
 
 app.put('/api/clientes/:id', requireAuth, async (req, res) => {
   try {
-    const { nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
-    await dbRun(`UPDATE clientes SET nome=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
-      WHERE id=?`, [nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
+    const { nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+    await dbRun(`UPDATE clientes SET nome=?, cnpj=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?`, [nome, cnpj || '', escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
     saveDb();
     await logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
     res.json({ ok: true });
@@ -547,13 +580,25 @@ app.delete('/api/clientes/:id', requireAuth, async (req, res) => {
 // ============ MOVIMENTACOES ROUTES ============
 app.get('/api/movimentacoes', requireAuth, async (req, res) => {
   try {
-    const { cliente_id, page = 1, limit = 50, search } = req.query;
+    const { cliente_id, page = 1, limit = 50, search,
+            f_cliente, f_tipo, f_duimp, f_parceiro,
+            f_data_ini, f_data_fim, f_valor_min, f_valor_max,
+            sort_by, sort_dir } = req.query;
+    const likeOp = isPostgres ? 'ILIKE' : 'LIKE';
     let sql = `SELECT m.*, c.nome as cliente_nome FROM movimentacoes m LEFT JOIN clientes c ON m.cliente_id = c.id`;
     const params = [];
     const conditions = [];
 
     if (cliente_id) { conditions.push("m.cliente_id = ?"); params.push(cliente_id); }
-    if (search) { conditions.push("(c.nome LIKE ? OR m.duimp_di_processo LIKE ?)"); params.push(`%${search}%`, `%${search}%`); }
+    if (search) { conditions.push(`(c.nome ${likeOp} ? OR m.duimp_di_processo ${likeOp} ?)`); params.push(`%${search}%`, `%${search}%`); }
+    if (f_cliente) { conditions.push(`c.nome ${likeOp} ?`); params.push(`%${f_cliente}%`); }
+    if (f_tipo) { conditions.push(`m.tipo_movimento ${likeOp} ?`); params.push(`%${f_tipo}%`); }
+    if (f_duimp) { conditions.push(`m.duimp_di_processo ${likeOp} ?`); params.push(`%${f_duimp}%`); }
+    if (f_parceiro) { conditions.push(`m.parceiro ${likeOp} ?`); params.push(`%${f_parceiro}%`); }
+    if (f_data_ini) { conditions.push("m.data_nf >= ?"); params.push(f_data_ini); }
+    if (f_data_fim) { conditions.push("m.data_nf <= ?"); params.push(f_data_fim); }
+    if (f_valor_min) { conditions.push("m.valor_ajustado >= ?"); params.push(parseFloat(f_valor_min)); }
+    if (f_valor_max) { conditions.push("m.valor_ajustado <= ?"); params.push(parseFloat(f_valor_max)); }
 
     if (conditions.length > 0) sql += " WHERE " + conditions.join(" AND ");
 
@@ -562,7 +607,18 @@ app.get('/api/movimentacoes', requireAuth, async (req, res) => {
     const countResult = await dbQuery(countSql, params);
     const total = isPostgres ? (countResult.rows[0]?.total || 0) : (countResult[0]?.values[0][0] || 0);
 
-    sql += " ORDER BY m.data_nf DESC";
+    // Sort whitelist
+    const sortMap = {
+      cliente_nome: 'c.nome',
+      tipo_movimento: 'm.tipo_movimento',
+      data_nf: 'm.data_nf',
+      duimp_di_processo: 'm.duimp_di_processo',
+      parceiro: 'm.parceiro',
+      valor_ajustado: 'm.valor_ajustado'
+    };
+    const sortCol = sortMap[sort_by] || 'm.data_nf';
+    const sortD = (sort_dir && sort_dir.toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
+    sql += ` ORDER BY ${sortCol} ${sortD}`;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     sql += ` LIMIT ${parseInt(limit)} OFFSET ${offset}`;
 
@@ -577,7 +633,12 @@ app.get('/api/movimentacoes', requireAuth, async (req, res) => {
 
 app.post('/api/movimentacoes', requireAuth, async (req, res) => {
   try {
-    const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor } = req.body;
+    const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, data_exoneracao, percentual, valor } = req.body;
+
+    // Parceiro is always derived from the client's escritório (cadastro)
+    const cliRes = await dbQuery("SELECT escritorio FROM clientes WHERE id = ?", [cliente_id]);
+    const cliArr = formatResult(cliRes);
+    const parceiro = cliArr.length > 0 ? (cliArr[0].escritorio || '') : '';
 
     // Calculate valor_ajustado automatically based on tipo_movimento
     let valor_ajustado = 0;
@@ -599,7 +660,12 @@ app.post('/api/movimentacoes', requireAuth, async (req, res) => {
 
 app.put('/api/movimentacoes/:id', requireAuth, async (req, res) => {
   try {
-    const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor } = req.body;
+    const { cliente_id, tipo_movimento, data_nf, duimp_di_processo, data_exoneracao, percentual, valor } = req.body;
+
+    // Parceiro is always derived from the client's escritório (cadastro)
+    const cliRes = await dbQuery("SELECT escritorio FROM clientes WHERE id = ?", [cliente_id]);
+    const cliArr = formatResult(cliRes);
+    const parceiro = cliArr.length > 0 ? (cliArr[0].escritorio || '') : '';
 
     // Calculate valor_ajustado automatically based on tipo_movimento
     let valor_ajustado = 0;
@@ -1042,6 +1108,283 @@ app.post('/api/import', requireAuth, requireAdmin, upload.single('file'), async 
     saveDb();
     await logAction(req.session.user.id, req.session.user.name, 'IMPORT', 'system', null, 'Importação de planilha realizada');
     res.json({ ok: true, message: 'Importação concluída com sucesso' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============ IMPORT EXTRATO PDF ============
+
+// Helpers for PDF extract parsing
+function parseDateBR(s) {
+  // '18/07/2025' -> '2025-07-18'
+  const m = s && s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+function parseMoney(s) {
+  if (!s) return 0;
+  // 'R$ 1.260.000' / 'R$ 13.189,13' / 'R$ 1.195.568,9' / plain '1.260.000,00'
+  let v = String(s).replace(/R\$\s*/ig, '').trim();
+  v = v.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+function onlyDigits(s) { return (s || '').replace(/\D/g, ''); }
+
+function parseExtratoPdf(text) {
+  // Identify header
+  const cnpjMatch = text.match(/CNPJ:\s*([\d./-]+)/i);
+  const razaoMatch = text.match(/Raz[ãa]o\s+Social:\s*([^\n]+?)\s*(?:-\s*Ativa|\n|$)/i);
+  const cnpj = cnpjMatch ? cnpjMatch[1].trim() : null;
+  const razao_social = razaoMatch ? razaoMatch[1].trim() : null;
+
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const movimentos = [];
+
+  for (const line of lines) {
+    // Skip obvious non-data lines
+    if (/Gerado em:/i.test(line)) continue;
+    if (/P[áa]gina\s+\d+\s+de\s+\d+/i.test(line)) continue;
+    if (/Saldo\s+Total/i.test(line)) continue;
+    if (/Total\s+de\s+(Cr[ée]ditos|D[ée]bitos)/i.test(line)) continue;
+    if (/Cr[ée]ditos\s+Reconhecidos/i.test(line)) continue;
+    if (/D[ée]bitos\s+de\s+Transfer[êe]ncias/i.test(line)) continue;
+    if (/D[ée]bitos\s+de\s+Liquida[çc][õo]es/i.test(line)) continue;
+
+    // Must start with date dd/mm/yyyy
+    if (!/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue;
+
+    // Try LIQ first (most specific: two R$, middle is ICMS usually 0,00, then digit %, then valor)
+    let m = line.match(/^(\d{2}\/\d{2}\/\d{4})\s*(.+?)\s*R\$\s*([\d.,]+)\s*(\d+)\s*R\$\s*([\d.,]+)\s*$/);
+    if (m) {
+      const valor = parseMoney('R$' + m[5]);
+      movimentos.push({
+        tipo_movimento: 'Débitos de Liquidações',
+        data_nf: parseDateBR(m[1]),
+        duimp_di_processo: m[2].replace(/\s+/g, ''),
+        icms_devido: parseMoney('R$' + m[3]),
+        percentual: parseFloat(m[4]),
+        valor,
+        valor_ajustado: -Math.abs(valor)
+      });
+      continue;
+    }
+
+    // Try CREDITO: has Natureza letter (single letter surrounded by whitespace) — T or A typically
+    m = line.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+([A-Z])\s*(?:(\d+)\s+)?R\$\s*([\d.,]+)(?:\s+(\d+))?\s*$/);
+    if (m) {
+      const valor = parseMoney('R$' + m[5]);
+      const cg_debitada = m[4] || m[6] || '';
+      movimentos.push({
+        tipo_movimento: 'Créditos Reconhecidos e Cedidos',
+        data_nf: parseDateBR(m[1]),
+        duimp_di_processo: m[2],
+        natureza: m[3],
+        cg_debitada,
+        valor,
+        valor_ajustado: valor
+      });
+      continue;
+    }
+
+    // Try TRANS: date processo cg R$ valor (two numeric groups + 1 R$)
+    m = line.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d+)\s+(\d+)\s+R\$\s*([\d.,]+)\s*$/);
+    if (m) {
+      const valor = parseMoney('R$' + m[4]);
+      movimentos.push({
+        tipo_movimento: 'Débitos de Transferências',
+        data_nf: parseDateBR(m[1]),
+        duimp_di_processo: m[2],
+        cg_creditada: m[3],
+        valor,
+        valor_ajustado: -Math.abs(valor)
+      });
+      continue;
+    }
+
+    // Unmatched: line doesn't match any known row pattern — ignore silently
+  }
+
+  return { cnpj, razao_social, movimentos };
+}
+
+// Normalize keys for comparison
+function normalizeDuimp(d) { return (d || '').toUpperCase().replace(/\s+/g, '').replace(/[^\w]/g, ''); }
+function movKey(m) {
+  return `${m.tipo_movimento}|${m.data_nf}|${normalizeDuimp(m.duimp_di_processo)}|${Number(m.valor_ajustado).toFixed(2)}`;
+}
+
+app.post('/api/import-extrato', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Arquivo PDF não enviado' });
+    const dataBuf = fs.readFileSync(req.file.path);
+    const text = await extractPdfText(dataBuf);
+    const parsed = parseExtratoPdf(text);
+
+    if (!parsed.cnpj && !parsed.razao_social) {
+      return res.status(400).json({ error: 'Não foi possível identificar o cliente no PDF (CNPJ / Razão Social não encontrados).' });
+    }
+
+    // Find client: try CNPJ first (normalized), then razão social (case-insensitive match)
+    let cliente = null;
+    const clientes = formatResult(await dbQuery("SELECT * FROM clientes"));
+    if (parsed.cnpj) {
+      const cnpjDigits = onlyDigits(parsed.cnpj);
+      cliente = clientes.find(c => onlyDigits(c.cnpj) === cnpjDigits && cnpjDigits.length > 0) || null;
+    }
+    if (!cliente && parsed.razao_social) {
+      const rsUp = parsed.razao_social.toUpperCase();
+      cliente = clientes.find(c => (c.nome || '').toUpperCase() === rsUp) ||
+                clientes.find(c => rsUp.includes((c.nome || '').toUpperCase()) || (c.nome || '').toUpperCase().includes(rsUp)) ||
+                null;
+    }
+
+    if (!cliente) {
+      return res.status(404).json({
+        error: 'Cliente não encontrado no sistema.',
+        cnpj: parsed.cnpj,
+        razao_social: parsed.razao_social,
+        movimentos_extraidos: parsed.movimentos.length
+      });
+    }
+
+    // Load existing movimentacoes for this cliente
+    const existRes = await dbQuery("SELECT * FROM movimentacoes WHERE cliente_id = ?", [cliente.id]);
+    const existing = formatResult(existRes);
+
+    // Build maps
+    const extMovs = parsed.movimentos;
+    const extByKey = {};
+    extMovs.forEach(m => { extByKey[movKey(m)] = m; });
+    const sysByKey = {};
+    existing.forEach(m => { sysByKey[movKey(m)] = m; });
+
+    // Matched: in both (same key)
+    const matched = [];
+    const missing_in_system = []; // in extract, not in system
+    const missing_in_extract = []; // in system, not in extract
+    const divergent = []; // same tipo + data + duimp but different valor
+
+    // Helper to find by looser key
+    const looseKey = (m) => `${m.tipo_movimento}|${m.data_nf}|${normalizeDuimp(m.duimp_di_processo)}`;
+    const sysByLoose = {};
+    existing.forEach(m => {
+      const k = looseKey(m);
+      if (!sysByLoose[k]) sysByLoose[k] = [];
+      sysByLoose[k].push(m);
+    });
+    const extByLoose = {};
+    extMovs.forEach(m => {
+      const k = looseKey(m);
+      if (!extByLoose[k]) extByLoose[k] = [];
+      extByLoose[k].push(m);
+    });
+
+    const usedSysIds = new Set();
+
+    for (const ext of extMovs) {
+      const exactMatch = sysByKey[movKey(ext)];
+      if (exactMatch) {
+        matched.push({ extrato: ext, sistema: exactMatch });
+        usedSysIds.add(exactMatch.id);
+        continue;
+      }
+      // Look for loose match (same tipo+data+duimp) with different valor
+      const candidates = (sysByLoose[looseKey(ext)] || []).filter(s => !usedSysIds.has(s.id));
+      if (candidates.length > 0) {
+        const sys = candidates[0];
+        divergent.push({
+          sistema: sys,
+          extrato: ext,
+          diferencas: {
+            valor_sistema: sys.valor_ajustado,
+            valor_extrato: ext.valor_ajustado
+          }
+        });
+        usedSysIds.add(sys.id);
+      } else {
+        missing_in_system.push(ext);
+      }
+    }
+
+    for (const sys of existing) {
+      if (usedSysIds.has(sys.id)) continue;
+      // If there's no exact match in extract
+      if (!extByKey[movKey(sys)]) {
+        // Also ensure it wasn't already counted as divergent
+        missing_in_extract.push(sys);
+      }
+    }
+
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+
+    res.json({
+      cliente: { id: cliente.id, nome: cliente.nome, cnpj: cliente.cnpj, escritorio: cliente.escritorio },
+      extrato_header: { cnpj: parsed.cnpj, razao_social: parsed.razao_social },
+      resumo: {
+        total_extrato: extMovs.length,
+        total_sistema: existing.length,
+        matched: matched.length,
+        divergent: divergent.length,
+        missing_in_system: missing_in_system.length,
+        missing_in_extract: missing_in_extract.length
+      },
+      matched,
+      divergent,
+      missing_in_system,
+      missing_in_extract
+    });
+  } catch (e) {
+    console.error('Erro na importação do extrato:', e);
+    try { if (req.file) fs.unlinkSync(req.file.path); } catch (x) {}
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Apply actions from extrato comparison
+app.post('/api/import-extrato/apply', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { cliente_id, includes = [], corrections = [], deletes = [] } = req.body;
+    if (!cliente_id) return res.status(400).json({ error: 'cliente_id obrigatório' });
+
+    // Get parceiro from client escritório
+    const cliRes = await dbQuery("SELECT escritorio FROM clientes WHERE id = ?", [cliente_id]);
+    const cliArr = formatResult(cliRes);
+    const parceiro = cliArr.length > 0 ? (cliArr[0].escritorio || '') : '';
+
+    let inc = 0, upd = 0, del = 0;
+
+    // Include missing
+    for (const m of includes) {
+      const valor = Math.abs(Number(m.valor) || 0);
+      const valor_ajustado = (m.tipo_movimento && m.tipo_movimento.includes('Débito')) ? -valor : valor;
+      await dbRun(`INSERT INTO movimentacoes (cliente_id, tipo_movimento, data_nf, duimp_di_processo, parceiro, data_exoneracao, percentual, valor, valor_ajustado)
+        VALUES (?,?,?,?,?,?,?,?,?)`,
+        [cliente_id, m.tipo_movimento, m.data_nf, m.duimp_di_processo || '', parceiro, null, m.percentual || null, valor, valor_ajustado]);
+      inc++;
+    }
+
+    // Correct divergent
+    for (const c of corrections) {
+      const id = c.id;
+      const valor = Math.abs(Number(c.valor) || 0);
+      const valor_ajustado = (c.tipo_movimento && c.tipo_movimento.includes('Débito')) ? -valor : valor;
+      await dbRun(`UPDATE movimentacoes SET valor=?, valor_ajustado=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [valor, valor_ajustado, id]);
+      upd++;
+    }
+
+    // Delete selected
+    for (const id of deletes) {
+      await dbRun(`DELETE FROM movimentacoes WHERE id = ?`, [id]);
+      del++;
+    }
+
+    saveDb();
+    await logAction(req.session.user.id, req.session.user.name, 'IMPORT', 'extrato', cliente_id,
+      `Extrato importado: ${inc} incluídos, ${upd} corrigidos, ${del} excluídos`);
+    res.json({ ok: true, incluidos: inc, corrigidos: upd, excluidos: del });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
