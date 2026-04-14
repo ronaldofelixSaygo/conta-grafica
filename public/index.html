@@ -317,7 +317,7 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
         <div class="table-responsive">
           <table><thead><tr>
             <th style="width:36px;"><input type="checkbox" id="checkAllClientes" onchange="toggleAllClientes(this.checked)"></th>
-            <th>Nome</th><th>Escritório</th><th>Sala</th><th>Filial</th><th>IE</th><th>Conta Gráfica</th><th>Certificado</th><th>% Comissão</th><th>Dia Fechamento</th><th>Ações</th>
+            <th>Nome</th><th>Escritório</th><th>Sala</th><th>Filial</th><th>IE</th><th>Conta Gráfica</th><th>Crédito certificado</th><th>% Comissão</th><th>Dia Fechamento</th><th>Ações</th>
           </tr></thead>
           <tbody id="tblClientes"></tbody></table>
         </div>
@@ -399,7 +399,7 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
           </div>
         </div>
         <div class="table-responsive">
-          <table><thead><tr><th>Cliente</th><th>Escritório</th><th>Certificado</th><th>Créditos</th><th>Débitos</th><th>Transferências</th><th>Saldo</th><th>Média Operação</th><th>Situação</th></tr></thead>
+          <table><thead><tr><th>Cliente</th><th>Escritório</th><th>Crédito certificado</th><th>Créditos</th><th>Débitos</th><th>Transferências</th><th>Saldo</th><th>Média Operação</th><th>Situação</th></tr></thead>
           <tbody id="tblSaldos"></tbody></table>
         </div>
       </div>
@@ -536,8 +536,14 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
           <input type="text" id="clienteNome" required>
         </div>
         <div class="form-group">
-          <label>CNPJ</label>
+          <label>CNPJ Matriz</label>
           <input type="text" id="clienteCnpj" placeholder="00.000.000/0000-00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>CNPJ Filial Alagoas</label>
+          <input type="text" id="clienteCnpjFilial" placeholder="00.000.000/0000-00">
         </div>
       </div>
       <div class="form-row">
@@ -547,43 +553,43 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
         </div>
         <div class="form-group">
           <label>Locação Sala</label>
-          <select id="clienteSala"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <select id="clienteSala"><option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Em andamento">Em andamento</option></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Parceiro Sala</label>
-          <input type="text" id="clienteParcSala">
+          <select id="clienteParcSala"><option value="">—</option><option value="Nordin">Nordin</option><option value="ST Logistica">ST Logistica</option><option value="Pedro">Pedro</option></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Abertura Filial</label>
-          <select id="clienteFilial"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <select id="clienteFilial"><option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Em andamento">Em andamento</option></select>
         </div>
         <div class="form-group">
           <label>Parceiro Filial</label>
-          <input type="text" id="clienteParcFilial">
+          <select id="clienteParcFilial"><option value="">—</option><option value="Marcio">Marcio</option><option value="Contador próprio">Contador próprio</option><option value="Pedro">Pedro</option></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Reativação IE</label>
-          <select id="clienteIE"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <select id="clienteIE"><option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Em andamento">Em andamento</option></select>
         </div>
         <div class="form-group">
           <label>Parceiro IE</label>
-          <input type="text" id="clienteParcIE">
+          <select id="clienteParcIE"><option value="">—</option><option value="Marcio">Marcio</option><option value="Contador próprio">Contador próprio</option><option value="Pedro">Pedro</option></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Conta Gráfica</label>
-          <select id="clienteCG"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <select id="clienteCG"><option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Em andamento">Em andamento</option></select>
         </div>
         <div class="form-group">
-          <label>Certificado</label>
-          <select id="clienteCert"><option value="Sim">Sim</option><option value="Não">Não</option></select>
+          <label>Crédito certificado</label>
+          <select id="clienteCert"><option value="">—</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Em andamento">Em andamento</option></select>
         </div>
       </div>
       <div class="form-row">
@@ -911,11 +917,11 @@ function renderClientes(list) {
     <td><input type="checkbox" class="chk-cliente" value="${c.id}" onchange="updateBtnComissaoLote()"></td>
     <td><strong>${c.nome}</strong></td>
     <td>${c.escritorio || '-'}</td>
-    <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : ''}">${c.locacao_sala}</span>${c.parceiro_sala ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_sala + '</div>' : ''}</td>
-    <td><span class="badge ${c.abertura_filial === 'Sim' ? 'green' : ''}">${c.abertura_filial}</span>${c.parceiro_filial ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_filial + '</div>' : ''}</td>
-    <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : ''}">${c.reativacao_ie}</span>${c.parceiro_ie ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_ie + '</div>' : ''}</td>
-    <td><span class="badge ${c.conta_grafica === 'Sim' ? 'green' : ''}">${c.conta_grafica}</span></td>
-    <td><span class="badge ${c.cliente_certificado === 'Sim' ? 'blue' : ''}">${c.cliente_certificado}</span></td>
+    <td><span class="badge ${c.locacao_sala === 'Sim' ? 'green' : c.locacao_sala === 'Em andamento' ? 'yellow' : ''}">${c.locacao_sala || '-'}</span>${c.parceiro_sala ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_sala + '</div>' : ''}</td>
+    <td><span class="badge ${c.abertura_filial === 'Sim' ? 'green' : c.abertura_filial === 'Em andamento' ? 'yellow' : ''}">${c.abertura_filial || '-'}</span>${c.parceiro_filial ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_filial + '</div>' : ''}</td>
+    <td><span class="badge ${c.reativacao_ie === 'Sim' ? 'green' : c.reativacao_ie === 'Em andamento' ? 'yellow' : ''}">${c.reativacao_ie || '-'}</span>${c.parceiro_ie ? '<div style="font-size:11px;color:#666;margin-top:2px;">' + c.parceiro_ie + '</div>' : ''}</td>
+    <td><span class="badge ${c.conta_grafica === 'Sim' ? 'green' : c.conta_grafica === 'Em andamento' ? 'yellow' : ''}">${c.conta_grafica || '-'}</span></td>
+    <td><span class="badge ${c.cliente_certificado === 'Sim' ? 'blue' : c.cliente_certificado === 'Em andamento' ? 'yellow' : ''}">${c.cliente_certificado || '-'}</span></td>
     <td style="text-align:center;">${c.percentual_comissao ? c.percentual_comissao + '%' : '-'}</td>
     <td style="text-align:center;">${c.dia_fechamento || '-'}</td>
     <td style="white-space:nowrap;">
@@ -992,15 +998,16 @@ function openClienteModal(data = null) {
   document.getElementById('clienteId').value = data ? data.id : '';
   document.getElementById('clienteNome').value = data ? data.nome : '';
   document.getElementById('clienteCnpj').value = data ? (data.cnpj || '') : '';
+  document.getElementById('clienteCnpjFilial').value = data ? (data.cnpj_filial || '') : '';
   document.getElementById('clienteEscritorio').value = data ? data.escritorio : 'Pedro';
-  document.getElementById('clienteSala').value = data ? data.locacao_sala : 'Sim';
+  document.getElementById('clienteSala').value = data ? (data.locacao_sala || '') : '';
   document.getElementById('clienteParcSala').value = data ? (data.parceiro_sala || '') : '';
-  document.getElementById('clienteFilial').value = data ? data.abertura_filial : 'Sim';
+  document.getElementById('clienteFilial').value = data ? (data.abertura_filial || '') : '';
   document.getElementById('clienteParcFilial').value = data ? (data.parceiro_filial || '') : '';
-  document.getElementById('clienteIE').value = data ? data.reativacao_ie : 'Sim';
+  document.getElementById('clienteIE').value = data ? (data.reativacao_ie || '') : '';
   document.getElementById('clienteParcIE').value = data ? (data.parceiro_ie || '') : '';
-  document.getElementById('clienteCG').value = data ? data.conta_grafica : 'Sim';
-  document.getElementById('clienteCert').value = data ? data.cliente_certificado : 'Sim';
+  document.getElementById('clienteCG').value = data ? (data.conta_grafica || '') : '';
+  document.getElementById('clienteCert').value = data ? (data.cliente_certificado || '') : '';
   document.getElementById('clientePercComissao').value = data ? (data.percentual_comissao || '') : '';
   document.getElementById('clienteDiaFechamento').value = data ? (data.dia_fechamento || '') : '';
   document.getElementById('clienteObs').value = data ? (data.observacoes || '') : '';
@@ -1014,6 +1021,7 @@ async function saveCliente() {
   const body = {
     nome: document.getElementById('clienteNome').value,
     cnpj: document.getElementById('clienteCnpj').value,
+    cnpj_filial: document.getElementById('clienteCnpjFilial').value,
     escritorio: document.getElementById('clienteEscritorio').value,
     locacao_sala: document.getElementById('clienteSala').value,
     parceiro_sala: document.getElementById('clienteParcSala').value,

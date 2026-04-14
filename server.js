@@ -127,12 +127,13 @@ async function initDatabase() {
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
         cnpj TEXT,
+        cnpj_filial TEXT,
         escritorio TEXT,
-        locacao_sala TEXT DEFAULT 'Não',
-        abertura_filial TEXT DEFAULT 'Não',
-        reativacao_ie TEXT DEFAULT 'Não',
-        conta_grafica TEXT DEFAULT 'Não',
-        cliente_certificado TEXT DEFAULT 'Não',
+        locacao_sala TEXT DEFAULT '',
+        abertura_filial TEXT DEFAULT '',
+        reativacao_ie TEXT DEFAULT '',
+        conta_grafica TEXT DEFAULT '',
+        cliente_certificado TEXT DEFAULT '',
         parceiro_sala TEXT,
         parceiro_filial TEXT,
         parceiro_ie TEXT,
@@ -219,12 +220,13 @@ async function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
       cnpj TEXT,
+      cnpj_filial TEXT,
       escritorio TEXT,
-      locacao_sala TEXT DEFAULT 'Não',
-      abertura_filial TEXT DEFAULT 'Não',
-      reativacao_ie TEXT DEFAULT 'Não',
-      conta_grafica TEXT DEFAULT 'Não',
-      cliente_certificado TEXT DEFAULT 'Não',
+      locacao_sala TEXT DEFAULT '',
+      abertura_filial TEXT DEFAULT '',
+      reativacao_ie TEXT DEFAULT '',
+      conta_grafica TEXT DEFAULT '',
+      cliente_certificado TEXT DEFAULT '',
       parceiro_sala TEXT,
       parceiro_filial TEXT,
       parceiro_ie TEXT,
@@ -293,6 +295,11 @@ async function initDatabase() {
     } catch (e) {
       // Column already exists
     }
+    try {
+      db.run(`ALTER TABLE clientes ADD COLUMN cnpj_filial TEXT`);
+    } catch (e) {
+      // Column already exists
+    }
   }
 
   // Default users that are always ensured on startup
@@ -351,10 +358,10 @@ async function initDatabase() {
               cols.forEach((c, i) => obj[c] = row[i]);
               try {
                 await pgPool.query(
-                  `INSERT INTO clientes (id, nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                  `INSERT INTO clientes (id, nome, cnpj_filial, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                    ON CONFLICT (id) DO NOTHING`,
-                  [obj.id, obj.nome, obj.escritorio, obj.locacao_sala, obj.abertura_filial, obj.reativacao_ie, obj.conta_grafica, obj.cliente_certificado, obj.parceiro_sala || '', obj.parceiro_filial || '', obj.parceiro_ie || '', obj.observacoes || '', obj.percentual_comissao || 0, obj.dia_fechamento || 1]
+                  [obj.id, obj.nome, obj.cnpj_filial || '', obj.escritorio, obj.locacao_sala, obj.abertura_filial, obj.reativacao_ie, obj.conta_grafica, obj.cliente_certificado, obj.parceiro_sala || '', obj.parceiro_filial || '', obj.parceiro_ie || '', obj.observacoes || '', obj.percentual_comissao || 0, obj.dia_fechamento || 1]
                 );
               } catch (e) { console.error('Migrate cliente error:', e.message); }
             }
@@ -507,9 +514,9 @@ app.get('/api/clientes', requireAuth, async (req, res) => {
 
 app.post('/api/clientes', requireAuth, async (req, res) => {
   try {
-    const { nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
-    await dbRun(`INSERT INTO clientes (nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [nome, cnpj || '', escritorio, locacao_sala || 'Não', abertura_filial || 'Não', reativacao_ie || 'Não', conta_grafica || 'Não', cliente_certificado || 'Não', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '', parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1]);
+    const { nome, cnpj, cnpj_filial, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+    await dbRun(`INSERT INTO clientes (nome, cnpj, cnpj_filial, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [nome, cnpj || '', cnpj_filial || '', escritorio, locacao_sala || '', abertura_filial || '', reativacao_ie || '', conta_grafica || '', cliente_certificado || '', parceiro_sala || '', parceiro_filial || '', parceiro_ie || '', observacoes || '', parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1]);
     saveDb();
     await logAction(req.session.user.id, req.session.user.name, 'CREATE', 'cliente', null, `Cliente criado: ${nome}`);
     res.json({ ok: true });
@@ -550,9 +557,9 @@ app.put('/api/clientes/comissao-lote', requireAuth, async (req, res) => {
 
 app.put('/api/clientes/:id', requireAuth, async (req, res) => {
   try {
-    const { nome, cnpj, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
-    await dbRun(`UPDATE clientes SET nome=?, cnpj=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
-      WHERE id=?`, [nome, cnpj || '', escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
+    const { nome, cnpj, cnpj_filial, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, percentual_comissao, dia_fechamento } = req.body;
+    await dbRun(`UPDATE clientes SET nome=?, cnpj=?, cnpj_filial=?, escritorio=?, locacao_sala=?, abertura_filial=?, reativacao_ie=?, conta_grafica=?, cliente_certificado=?, parceiro_sala=?, parceiro_filial=?, parceiro_ie=?, observacoes=?, percentual_comissao=?, dia_fechamento=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?`, [nome, cnpj || '', cnpj_filial || '', escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes, parseFloat(percentual_comissao) || 0, parseInt(dia_fechamento) || 1, req.params.id]);
     saveDb();
     await logAction(req.session.user.id, req.session.user.name, 'UPDATE', 'cliente', req.params.id, `Cliente atualizado: ${nome}`);
     res.json({ ok: true });
@@ -1067,7 +1074,7 @@ app.post('/api/import', requireAuth, requireAdmin, upload.single('file'), async 
         const exists = isPostgres ? existing.rows.length > 0 : existing.length > 0 && existing[0].values.length > 0;
         if (!exists) {
           await dbRun(`INSERT INTO clientes (nome, escritorio, locacao_sala, abertura_filial, reativacao_ie, conta_grafica, cliente_certificado, parceiro_sala, parceiro_filial, parceiro_ie, observacoes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [row[0], row[1] || '', row[2] || 'Não', row[3] || 'Não', row[4] || 'Não', row[5] || 'Não', row[6] || 'Não', row[8] || '', row[9] || '', row[10] || '', row[7] || '']);
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [row[0], row[1] || '', row[2] || '', row[3] || '', row[4] || '', row[5] || '', row[6] || '', row[8] || '', row[9] || '', row[10] || '', row[7] || '']);
         }
       }
     }
