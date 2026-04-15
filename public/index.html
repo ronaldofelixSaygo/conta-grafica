@@ -549,7 +549,7 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
       <div class="form-row">
         <div class="form-group">
           <label>Escritório</label>
-          <select id="clienteEscritorio"><option value="Pedro">Pedro</option><option value="Pitágoras">Pitágoras</option></select>
+          <select id="clienteEscritorio"><option value="">—</option><option value="Pedro">Pedro</option><option value="Pitágoras">Pitágoras</option></select>
         </div>
         <div class="form-group">
           <label>Locação Sala</label>
@@ -559,7 +559,7 @@ tr.filter-row th { padding: 4px 6px; background: #fafafa; border-bottom: 1px sol
       <div class="form-row">
         <div class="form-group">
           <label>Parceiro Sala</label>
-          <select id="clienteParcSala"><option value="">—</option><option value="Nordin">Nordin</option><option value="ST Logistica">ST Logistica</option><option value="Pedro">Pedro</option></select>
+          <select id="clienteParcSala"><option value="">—</option><option value="Nordin">Nordin</option><option value="ST Logistica">ST Logistica</option></select>
         </div>
       </div>
       <div class="form-row">
@@ -783,10 +783,40 @@ function toggleSidebar() {
 // ============ API HELPERS ============
 async function api(url, opts = {}) {
   const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Erro');
+  const ct = res.headers.get('content-type') || '';
+  let data = null;
+  if (ct.includes('application/json')) {
+    try { data = await res.json(); } catch (_) { data = null; }
+  } else {
+    const txt = await res.text().catch(() => '');
+    if (!res.ok) {
+      throw new Error(`Servidor retornou ${res.status}. Tente novamente em alguns segundos (o servidor pode estar reiniciando).`);
+    }
+    // res.ok with non-JSON: not expected, just return empty
+    return {};
+  }
+  if (!res.ok) throw new Error((data && data.error) || `Erro ${res.status}`);
   return data;
 }
+
+// ============ CNPJ MASK ============
+function maskCnpj(v) {
+  const d = (v || '').replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return d.replace(/^(\d{2})(\d+)/, '$1.$2');
+  if (d.length <= 8) return d.replace(/^(\d{2})(\d{3})(\d+)/, '$1.$2.$3');
+  if (d.length <= 12) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d+)/, '$1.$2.$3/$4');
+  return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d+)/, '$1.$2.$3/$4-$5');
+}
+function attachCnpjMask(el) {
+  if (!el || el.dataset.cnpjMasked) return;
+  el.dataset.cnpjMasked = '1';
+  el.addEventListener('input', () => { el.value = maskCnpj(el.value); });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  attachCnpjMask(document.getElementById('clienteCnpj'));
+  attachCnpjMask(document.getElementById('clienteCnpjFilial'));
+});
 
 function toast(msg, type = 'success') {
   const el = document.createElement('div');
@@ -997,9 +1027,9 @@ function openClienteModal(data = null) {
   document.getElementById('modalClienteTitle').textContent = data ? 'Editar Cliente' : 'Novo Cliente';
   document.getElementById('clienteId').value = data ? data.id : '';
   document.getElementById('clienteNome').value = data ? data.nome : '';
-  document.getElementById('clienteCnpj').value = data ? (data.cnpj || '') : '';
-  document.getElementById('clienteCnpjFilial').value = data ? (data.cnpj_filial || '') : '';
-  document.getElementById('clienteEscritorio').value = data ? data.escritorio : 'Pedro';
+  document.getElementById('clienteCnpj').value = data ? maskCnpj(data.cnpj || '') : '';
+  document.getElementById('clienteCnpjFilial').value = data ? maskCnpj(data.cnpj_filial || '') : '';
+  document.getElementById('clienteEscritorio').value = data ? (data.escritorio || '') : '';
   document.getElementById('clienteSala').value = data ? (data.locacao_sala || '') : '';
   document.getElementById('clienteParcSala').value = data ? (data.parceiro_sala || '') : '';
   document.getElementById('clienteFilial').value = data ? (data.abertura_filial || '') : '';

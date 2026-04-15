@@ -407,6 +407,7 @@ async function initDatabase() {
   }
 }
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -414,8 +415,18 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'conta-grafica-secret-key-2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax'
+  }
 }));
+
+// Ensure /api/* errors always return JSON (not HTML) so the frontend shows proper messages
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -1540,6 +1551,17 @@ async function start() {
 
     // Initialize database schema and default users
     await initDatabase();
+
+    // JSON error handler for /api/* routes (keep before listen)
+    app.use('/api', (err, req, res, next) => {
+      console.error('API error:', err);
+      if (res.headersSent) return next(err);
+      res.status(500).json({ error: err.message || 'Erro interno do servidor' });
+    });
+    // JSON 404 for unknown API routes
+    app.use('/api', (req, res) => {
+      res.status(404).json({ error: 'Rota não encontrada' });
+    });
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Sistema Conta Gráfica rodando em http://localhost:${PORT}`);
