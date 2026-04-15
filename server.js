@@ -187,6 +187,7 @@ async function initDatabase() {
 
     const columnsToAdd = [
       { name: 'cnpj', type: 'TEXT' },
+      { name: 'cnpj_filial', type: 'TEXT' },
       { name: 'parceiro_sala', type: 'TEXT' },
       { name: 'parceiro_filial', type: 'TEXT' },
       { name: 'parceiro_ie', type: 'TEXT' },
